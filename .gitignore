@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Streamlit
+.streamlit/
+
+# 환경 변수
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 데이터 파일 (샘플 제외)
+*.csv
+!sample_purchases.csv
+
+# 사용자 데이터
+data/users.json
+data/session.json
+
+# Claude Code
+.claude/
+
+# 백업 파일
+*.backup
+
+# 기타
+nul
+
+# 로그
+*.log
