@@ -145,6 +145,7 @@ TRANSLATIONS = {
         'sample_download': '샘플 CSV 다운로드',
         'analysis_tips': '분석 팁',
         'analysis_tips_text': '- 최소 5건 이상의 데이터를 입력하면 더 정확한 분석이 가능합니다\n- 필요도와 사용빈도의 차이가 클수록 후회 점수가 높아집니다',
+        'analysis_history': '분석 이력',
 
         # 로그인
         'login_required': '이 서비스를 이용하려면 Google 계정으로 로그인이 필요합니다.',
@@ -292,6 +293,7 @@ TRANSLATIONS = {
         'sample_download': 'サンプルCSVダウンロード',
         'analysis_tips': '分析ヒント',
         'analysis_tips_text': '- 最低5件以上のデータを入力すると、より正確な分析が可能です\n- 必要度と使用頻度の差が大きいほど後悔スコアが高くなります',
+        'analysis_history': '分析履歴',
 
         # ログイン
         'login_required': 'このサービスを利用するにはGoogleアカウントでのログインが必要です。',

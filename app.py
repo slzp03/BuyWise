@@ -51,6 +51,18 @@ from utils.auth import (
     load_session
 )
 
+# Supabase DB (선택적)
+try:
+    from utils.database import (
+        is_db_available, get_or_create_user, get_user_by_email,
+        save_purchases, load_purchases, get_purchase_count,
+        save_analysis, load_analyses, load_latest_analysis,
+        log_ai_usage
+    )
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
 # OpenAI는 선택적 기능으로 처리
 try:
     from utils.openai_service import (
@@ -198,6 +210,40 @@ def display_sidebar():
             </small>
         </div>
         """, unsafe_allow_html=True)
+
+
+def display_analysis_history():
+    """사이드바에 분석 이력 표시 (DB 연동 시)"""
+    lang = get_lang()
+    user_id = st.session_state.get('db_user_id')
+    if not user_id or not DB_AVAILABLE or not is_db_available():
+        return
+
+    with st.sidebar:
+        st.divider()
+        st.markdown(f"### {t('analysis_history', lang) if 'analysis_history' in TRANSLATIONS.get(lang, {}) else '분석 이력'}")
+
+        analyses = load_analyses(user_id, limit=5)
+        if not analyses:
+            st.caption("아직 분석 이력이 없습니다." if lang == 'ko' else "分析履歴がありません。")
+            return
+
+        # 저장된 구매 이력 수
+        purchase_count = get_purchase_count(user_id)
+        st.caption(f"{'저장된 구매' if lang == 'ko' else '保存された購入'}: {purchase_count}건")
+
+        for a in analyses:
+            created = a.get('created_at', '')[:10]
+            avg_score = a.get('average_regret_score', 0)
+            count = a.get('purchase_count', 0)
+            label = f"{created} | {count}건 | 후회 {avg_score:.0f}점"
+
+            with st.expander(label, expanded=False):
+                if a.get('psychology_analysis'):
+                    st.markdown(a['psychology_analysis'][:300] + "..." if len(a.get('psychology_analysis', '')) > 300 else a.get('psychology_analysis', ''))
+                if a.get('smart_insights'):
+                    st.markdown("---")
+                    st.markdown(a['smart_insights'][:300] + "..." if len(a.get('smart_insights', '')) > 300 else a.get('smart_insights', ''))
 
 
 def display_login_screen():
@@ -1072,6 +1118,25 @@ def display_ai_analysis(df: pd.DataFrame):
             if feedback_result['success'] or insights_result['success']:
                 st.success(t('ai_complete', lang))
 
+                # DB에 분석 결과 저장
+                user_id = st.session_state.get('db_user_id')
+                if user_id and DB_AVAILABLE and is_db_available():
+                    high_regret = int((df['후회점수'] >= 50).sum()) if '후회점수' in df.columns else 0
+                    analysis_id = save_analysis(user_id, {
+                        'purchase_count': len(df),
+                        'total_spent': int(df['금액'].sum()),
+                        'average_regret_score': round(analysis['avg_regret_score'], 2),
+                        'high_regret_count': high_regret,
+                        'psychology_analysis': feedback_result.get('feedback', ''),
+                        'smart_insights': insights_result.get('insights', '')
+                    })
+
+                    # AI 사용량 로깅
+                    if feedback_result.get('usage'):
+                        log_ai_usage(user_id, analysis_id, 'psychology', feedback_result['usage'])
+                    if insights_result.get('usage'):
+                        log_ai_usage(user_id, analysis_id, 'smart_insights', insights_result['usage'])
+
                 # 심리 분석 결과 표시
                 if feedback_result['success']:
                     st.markdown("---")
@@ -1379,6 +1444,15 @@ def main():
     user_info = st.session_state.user_info
     user_email = user_info['email']
 
+    # ===== DB 사용자 연동 =====
+    if DB_AVAILABLE and is_db_available() and 'db_user_id' not in st.session_state:
+        db_user = get_or_create_user(user_info)
+        if db_user:
+            st.session_state.db_user_id = db_user['id']
+            # 세션 파일에도 db_user_id 저장
+            user_info['db_user_id'] = db_user['id']
+            save_session(user_info)
+
     # ===== 사용 횟수 체크 =====
     can_use, remaining, is_subscribed = check_usage_limit(user_email)
 
@@ -1431,6 +1505,9 @@ def main():
     # 사이드바 나머지 (기존)
     display_sidebar()
 
+    # 분석 이력 (DB 연동 시)
+    display_analysis_history()
+
     # 사용 횟수 소진 체크
     if not can_use:
         display_usage_limit_screen(remaining)
@@ -1460,6 +1537,12 @@ def main():
         if st.session_state.get('new_analysis', False):
             increment_usage_count(user_email)
             st.session_state.new_analysis = False
+
+            # DB에 구매 이력 저장
+            user_id = st.session_state.get('db_user_id')
+            if user_id and DB_AVAILABLE and is_db_available():
+                source = 'csv' if st.session_state.get('last_uploaded_file') else 'manual'
+                save_purchases(user_id, processed_df, source)
 
     # 데이터가 있으면 분석 표시
     if st.session_state.processed_df is not None:

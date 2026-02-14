@@ -25,22 +25,24 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# 데이터 파일 (샘플 제외)
-*.csv
-!sample_purchases.csv
-
-# 사용자 데이터
+# 사용자 데이터 (로컬 세션/유저)
 data/users.json
 data/session.json
+
+# CSV 데이터 (샘플 제외)
+*.csv
+!sample_purchases.csv
 
 # Claude Code
 .claude/
 
-# 백업 파일
+# 백업/임시
 *.backup
-
-# 기타
+*.tmp
 nul
 
 # 로그
 *.log
+
+# 작업용 문서 (Git 불필요)
+plan.md

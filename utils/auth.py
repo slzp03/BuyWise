@@ -1,5 +1,6 @@
 """
 Google OAuth 2.0 인증 및 사용자 관리 모듈
+- Supabase DB 우선 사용, 연결 실패 시 로컬 JSON fallback
 """
 
 import os
@@ -7,9 +8,20 @@ import json
 import streamlit as st
 from pathlib import Path
 from typing import Optional, Dict, Tuple
+
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
+
+# DB 모듈 (선택적)
+try:
+    from utils.database import (
+        is_db_available, get_or_create_user, get_user_by_email,
+        get_usage_count, increment_usage, update_language
+    )
+    DB_MODULE_AVAILABLE = True
+except ImportError:
+    DB_MODULE_AVAILABLE = False
 
 
 def get_google_oauth_flow():
@@ -89,6 +101,13 @@ def handle_oauth_callback(code: str) -> Optional[Dict]:
             'sub': id_info.get('sub')  # Google User ID
         }
 
+        # DB에 사용자 등록/업데이트
+        _use_db = DB_MODULE_AVAILABLE and is_db_available()
+        if _use_db:
+            db_user = get_or_create_user(user_info)
+            if db_user:
+                user_info['db_user_id'] = db_user['id']
+
         return user_info
 
     except Exception as e:
@@ -96,9 +115,14 @@ def handle_oauth_callback(code: str) -> Optional[Dict]:
         return None
 
 
-# 사용자 데이터 저장 경로
+# 사용자 데이터 저장 경로 (JSON fallback용)
 USER_DATA_FILE = Path(__file__).parent.parent / "data" / "users.json"
 SESSION_FILE = Path(__file__).parent.parent / "data" / "session.json"
+
+
+def _use_db() -> bool:
+    """DB 사용 가능 여부"""
+    return DB_MODULE_AVAILABLE and is_db_available()
 
 
 def save_session(user_info: Dict) -> None:
@@ -117,7 +141,15 @@ def load_session() -> Optional[Dict]:
         return None
     try:
         with open(SESSION_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            session = json.load(f)
+
+        # DB 연결 가능하면 db_user_id 복원
+        if _use_db() and 'db_user_id' not in session:
+            db_user = get_user_by_email(session.get('email', ''))
+            if db_user:
+                session['db_user_id'] = db_user['id']
+
+        return session
     except Exception:
         return None
 
@@ -128,73 +160,66 @@ def clear_session() -> None:
         SESSION_FILE.unlink()
 
 
-def load_user_data() -> Dict:
-    """
-    사용자 데이터 로드
+# ============================================
+# JSON Fallback 함수들 (DB 불가 시 사용)
+# ============================================
 
-    Returns:
-        dict: 사용자 데이터 딕셔너리
-    """
+def _load_user_data_json() -> Dict:
+    """로컬 JSON에서 사용자 데이터 로드"""
     if not USER_DATA_FILE.exists():
         USER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         return {}
-
     try:
         with open(USER_DATA_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception as e:
-        st.warning(f"사용자 데이터 로드 실패: {str(e)}")
+    except Exception:
         return {}
 
 
-def save_user_data(data: Dict) -> None:
-    """
-    사용자 데이터 저장
-
-    Args:
-        data: 저장할 사용자 데이터 딕셔너리
-    """
+def _save_user_data_json(data: Dict) -> None:
+    """로컬 JSON에 사용자 데이터 저장"""
     try:
         USER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(USER_DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        st.error(f"사용자 데이터 저장 실패: {str(e)}")
+    except Exception:
+        pass
 
+
+# ============================================
+# 통합 인터페이스 (DB 우선, JSON fallback)
+# ============================================
 
 def check_usage_limit(user_email: str) -> Tuple[bool, int, bool]:
     """
-    사용 횟수 제한 체크
-
-    Args:
-        user_email: 사용자 이메일
+    사용 횟수 제한 체크 (DB 우선, JSON fallback)
 
     Returns:
         tuple: (사용 가능 여부, 남은 횟수, 구독 상태)
-               - 사용 가능 여부: True/False
-               - 남은 횟수: 0-5 (구독자는 -1)
-               - 구독 상태: True/False
     """
-    users = load_user_data()
+    # DB 사용 가능 시
+    if _use_db():
+        db_user = get_user_by_email(user_email)
+        if db_user:
+            return get_usage_count(db_user['id'])
+
+    # JSON fallback
+    users = _load_user_data_json()
 
     if user_email not in users:
-        # 신규 사용자
         users[user_email] = {
             'usage_count': 0,
             'is_subscribed': False,
             'subscription_date': None
         }
-        save_user_data(users)
+        _save_user_data_json(users)
 
     user = users[user_email]
 
-    # 구독자는 무제한
     if user['is_subscribed']:
         return True, -1, True
 
-    # 무료 사용자 (5회 제한)
     remaining = 5 - user['usage_count']
-
     if remaining > 0:
         return True, remaining, False
     else:
@@ -203,18 +228,21 @@ def check_usage_limit(user_email: str) -> Tuple[bool, int, bool]:
 
 def increment_usage_count(user_email: str) -> None:
     """
-    사용 횟수 1 증가
-
-    Args:
-        user_email: 사용자 이메일
+    사용 횟수 1 증가 (DB 우선, JSON fallback)
     """
-    users = load_user_data()
+    # DB 사용 가능 시
+    if _use_db():
+        db_user = get_user_by_email(user_email)
+        if db_user:
+            increment_usage(db_user['id'])
+            return
 
+    # JSON fallback
+    users = _load_user_data_json()
     if user_email in users:
-        # 구독자는 카운트 증가 안함
         if not users[user_email].get('is_subscribed', False):
             users[user_email]['usage_count'] += 1
-            save_user_data(users)
+            _save_user_data_json(users)
 
 
 def logout() -> None:
@@ -226,7 +254,8 @@ def logout() -> None:
 
     # 세션 상태 초기화
     keys_to_delete = ['user_info', 'oauth_state', 'processed_df', 'manual_items',
-                      'ai_feedback', 'ai_usage', 'smart_insights', 'smart_insights_usage']
+                      'ai_feedback', 'ai_usage', 'smart_insights', 'smart_insights_usage',
+                      'db_user_id']
 
     for key in keys_to_delete:
         if key in st.session_state:
