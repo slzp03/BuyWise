@@ -1433,8 +1433,11 @@ def main():
         </style>
         """, unsafe_allow_html=True)
 
-    # ===== 사용 횟수 체크 =====
-    can_use, remaining, is_subscribed = check_usage_limit(user_email)
+    # ===== 사용 횟수 체크 (관리자는 무제한) =====
+    if st.session_state.get('is_admin', False):
+        can_use, remaining, is_subscribed = True, -1, True
+    else:
+        can_use, remaining, is_subscribed = check_usage_limit(user_email)
 
     # 헤더 표시
     display_header()
