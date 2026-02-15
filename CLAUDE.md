@@ -247,9 +247,24 @@ streamlit run app.py
 - [x] Google OAuth redirect_uri 업데이트
 - [x] Supabase URL Configuration 업데이트
 - [x] Buy Me a Coffee 연결 (buymeacoffee.com/m.kim)
+- [x] GitHub Pages (홈페이지, 개인정보처리방침, 서비스 약관)
+- [x] Google OAuth 프로덕션 게시 + 도메인 인증
+- [x] 관리자 기능 (툴바 숨기기, 무제한 분석)
 - [ ] 시연 영상 제작
 
-### Phase 6: 모바일 앱 배포 (해커톤 이후)
+### Phase 5.5a: UX 개선
+- [ ] 데모 모드: 로그인 없이 샘플 데이터로 분석 체험 (심사위원/신규유저 온보딩)
+- [ ] 첫 로그인 튜토리얼/가이드 추가
+- [ ] 카카오뱅크/토스 내역 복붙 파싱 지원
+- [ ] 영수증 사진 OCR (GPT-4o Vision 활용)
+
+### Phase 5.5b: 리텐션 & 게이미피케이션
+- [ ] 주간/월간 소비 리포트 자동 생성
+- [ ] 월간 절약 챌린지 (목표 설정 → 달성률)
+- [ ] 절약 뱃지/레벨 시스템
+- [ ] 익명 통계 비교 ("같은 연령대 평균 대비 절약률")
+
+### Phase 6: 모바일 앱 배포
 - [ ] Flutter SDK 설치 + 빌드 테스트
 - [ ] Android 앱 Google Play 배포
 - [ ] PWA 지원 검토
