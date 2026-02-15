@@ -31,13 +31,16 @@ def get_google_oauth_flow():
     Returns:
         Flow: Google OAuth Flow 객체
     """
+    # 환경에 따라 redirect URI 결정 (배포 URL 또는 localhost)
+    redirect_uri = os.getenv("REDIRECT_URI", "http://localhost:8501")
+
     client_config = {
         "web": {
             "client_id": os.getenv("GOOGLE_CLIENT_ID"),
             "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": ["http://localhost:8501"]
+            "redirect_uris": [redirect_uri]
         }
     }
 
@@ -45,7 +48,7 @@ def get_google_oauth_flow():
         client_config,
         scopes=["openid", "https://www.googleapis.com/auth/userinfo.email",
                 "https://www.googleapis.com/auth/userinfo.profile"],
-        redirect_uri="http://localhost:8501"
+        redirect_uri=redirect_uri
     )
 
     return flow
