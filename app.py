@@ -279,6 +279,16 @@ def display_analysis_history():
 
 def display_login_screen():
     """로그인 화면 표시"""
+    # 로그인 화면에서는 툴바 숨기기
+    st.markdown("""
+    <style>
+        [data-testid="stToolbar"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+    </style>
+    """, unsafe_allow_html=True)
+
     # 로그인 전에도 언어 선택 가능
     with st.sidebar:
         lang_options = {'한국어': 'ko', '日本語': 'ja'}
