@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_subscribed BOOLEAN DEFAULT FALSE,
   subscription_date TIMESTAMPTZ,
   language VARCHAR(10) DEFAULT 'ko',
+  is_admin BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_login TIMESTAMPTZ DEFAULT NOW()
 );

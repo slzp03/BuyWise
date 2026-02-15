@@ -55,6 +55,7 @@ from utils.auth import (
 try:
     from utils.database import (
         is_db_available, get_or_create_user, get_user_by_email,
+        is_admin,
         save_purchases, save_single_purchase, load_purchases,
         delete_purchases, get_purchase_count,
         save_analysis, load_analyses, load_latest_analysis,
@@ -1416,9 +1417,21 @@ def main():
         db_user = get_or_create_user(user_info)
         if db_user:
             st.session_state.db_user_id = db_user['id']
+            st.session_state.is_admin = db_user.get('is_admin', False)
             # 세션 파일에도 db_user_id 저장
             user_info['db_user_id'] = db_user['id']
             save_session(user_info)
+
+    # ===== 관리자가 아니면 Streamlit 툴바 숨기기 =====
+    if not st.session_state.get('is_admin', False):
+        st.markdown("""
+        <style>
+            [data-testid="stToolbar"] {display: none !important;}
+            .stDeployButton {display: none !important;}
+            #MainMenu {visibility: hidden !important;}
+            footer {visibility: hidden !important;}
+        </style>
+        """, unsafe_allow_html=True)
 
     # ===== 사용 횟수 체크 =====
     can_use, remaining, is_subscribed = check_usage_limit(user_email)

@@ -166,6 +166,21 @@ def increment_usage(user_id: str) -> None:
         pass
 
 
+def is_admin(user_id: str) -> bool:
+    """사용자가 관리자인지 확인"""
+    client = get_supabase_client()
+    if not client:
+        return False
+
+    try:
+        result = client.table('users').select('is_admin').eq('id', user_id).execute()
+        if result.data:
+            return result.data[0].get('is_admin', False)
+        return False
+    except Exception:
+        return False
+
+
 def update_language(user_id: str, lang: str) -> None:
     """언어 설정 저장"""
     client = get_supabase_client()
