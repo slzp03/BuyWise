@@ -78,7 +78,7 @@ except ImportError:
 # 페이지 설정
 st.set_page_config(
     page_title="BuyWise! 구매를 현명하게!",
-    page_icon="🛒",
+    page_icon="buywise_icon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
