@@ -283,6 +283,7 @@ def display_login_screen():
     st.markdown("""
     <style>
         [data-testid="stToolbar"] {display: none !important;}
+        [data-testid="stStatusWidget"] {display: none !important;}
         .stDeployButton {display: none !important;}
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
@@ -1437,6 +1438,7 @@ def main():
         st.markdown("""
         <style>
             [data-testid="stToolbar"] {display: none !important;}
+            [data-testid="stStatusWidget"] {display: none !important;}
             .stDeployButton {display: none !important;}
             #MainMenu {visibility: hidden !important;}
             footer {visibility: hidden !important;}
