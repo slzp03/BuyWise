@@ -32,7 +32,7 @@ JA_TO_KO_COLUMNS = {
 TRANSLATIONS = {
     'ko': {
         # 페이지
-        'page_title': 'Smart Purchase Analyzer',
+        'page_title': 'BuyWise! 구매를 현명하게!',
         'page_subtitle': '데이터 기반 구매 패턴 분석으로 현명한 소비 습관을 만들어보세요',
 
         # 헤더
@@ -333,7 +333,7 @@ API 키가 없어도 기본 분석은 계속 이용 가능합니다!""",
 
     'ja': {
         # ページ
-        'page_title': 'Smart Purchase Analyzer',
+        'page_title': 'BuyWise! 賢く買い物!',
         'page_subtitle': 'データに基づく購買パターン分析で賢い消費習慣を身につけましょう',
 
         # ヘッダー

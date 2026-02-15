@@ -243,8 +243,10 @@ streamlit run app.py
 ## 다음 단계
 
 ### Phase 5: 배포 (해커톤 제출)
-- [ ] Streamlit Cloud 배포
-- [ ] Google OAuth redirect_uri 업데이트
+- [x] Streamlit Cloud 배포 (buywiseapp.streamlit.app)
+- [x] Google OAuth redirect_uri 업데이트
+- [x] Supabase URL Configuration 업데이트
+- [x] Buy Me a Coffee 연결 (buymeacoffee.com/m.kim)
 - [ ] 시연 영상 제작
 
 ### Phase 6: 모바일 앱 배포 (해커톤 이후)
@@ -252,11 +254,18 @@ streamlit run app.py
 - [ ] Android 앱 Google Play 배포
 - [ ] PWA 지원 검토
 
+### Phase 7: React 프론트엔드 마이그레이션 (장기)
+- [ ] FastAPI 백엔드 구축 (기존 utils/ 모듈 재사용)
+- [ ] React 프론트엔드 개발 (자체 도메인 + 완전 커스텀 UI)
+- [ ] Google AdSense 연동 (ads.txt 서빙 가능)
+- [ ] Stripe 결제 통합 (프리미엄 구독)
+- [ ] 자체 도메인 배포 (Vercel/AWS)
+
 ---
 
 ## Claude에게
 
-- **Streamlit 올인원 앱** (FastAPI+React 아님)
+- **현재 Streamlit 올인원 앱** (Phase 7에서 FastAPI+React 전환 예정)
 - 코드 수정 시 **utils/ 모듈 구조** 유지
 - 모든 API 키는 **.env**로 관리
 - DB는 **Supabase 우선, JSON fallback**

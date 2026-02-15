@@ -77,8 +77,8 @@ except ImportError:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="Smart Purchase Analyzer",
-    page_icon="📊",
+    page_title="BuyWise! 구매를 현명하게!",
+    page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
