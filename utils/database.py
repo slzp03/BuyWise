@@ -230,9 +230,55 @@ def save_purchases(user_id: str, df: pd.DataFrame, source: str = 'manual') -> bo
         return False
 
 
-def load_purchases(user_id: str) -> Optional[pd.DataFrame]:
+def save_single_purchase(user_id: str, purchase_data: dict) -> bool:
+    """
+    개별 구매 1건을 DB에 저장 (가계부용)
+
+    Args:
+        user_id: 사용자 UUID
+        purchase_data: {날짜, 카테고리, 상품명, 금액, 필요도, 사용빈도, 고민기간?, 재구매의향?}
+
+    Returns:
+        성공 여부
+    """
+    client = get_supabase_client()
+    if not client:
+        return False
+
+    try:
+        row = {
+            'user_id': user_id,
+            'purchase_date': str(purchase_data.get('날짜', ''))[:10],
+            'category': str(purchase_data.get('카테고리', '')),
+            'product_name': str(purchase_data.get('상품명', '')),
+            'amount': int(float(purchase_data.get('금액', 0))),
+            'necessity_score': int(purchase_data.get('필요도', 3)),
+            'usage_frequency': int(purchase_data.get('사용빈도', 3)),
+            'source': 'manual'
+        }
+
+        if purchase_data.get('고민기간') is not None:
+            row['thinking_days'] = int(purchase_data['고민기간'])
+        if purchase_data.get('재구매의향') is not None:
+            intent = str(purchase_data['재구매의향']).strip().lower()
+            row['repurchase_intent'] = intent in ('예', 'yes', 'y', '1', 'はい')
+
+        client.table('purchases').insert(row).execute()
+        return True
+
+    except Exception:
+        return False
+
+
+def load_purchases(user_id: str, date_from: str = None, date_to: str = None, include_id: bool = False) -> Optional[pd.DataFrame]:
     """
     DB에서 사용자의 구매 이력 로드
+
+    Args:
+        user_id: 사용자 UUID
+        date_from: 시작일 (YYYY-MM-DD), None이면 전체
+        date_to: 종료일 (YYYY-MM-DD), None이면 전체
+        include_id: True면 DB id 컬럼 포함 (삭제용)
 
     Returns:
         구매 이력 DataFrame 또는 None
@@ -242,11 +288,16 @@ def load_purchases(user_id: str) -> Optional[pd.DataFrame]:
         return None
 
     try:
-        result = (client.table('purchases')
-                  .select('*')
-                  .eq('user_id', user_id)
-                  .order('purchase_date', desc=True)
-                  .execute())
+        query = (client.table('purchases')
+                 .select('*')
+                 .eq('user_id', user_id))
+
+        if date_from:
+            query = query.gte('purchase_date', date_from)
+        if date_to:
+            query = query.lte('purchase_date', date_to)
+
+        result = query.order('purchase_date', desc=True).execute()
 
         if not result.data:
             return None
@@ -262,6 +313,8 @@ def load_purchases(user_id: str) -> Optional[pd.DataFrame]:
                 '필요도': r['necessity_score'] or 3,
                 '사용빈도': r['usage_frequency'] or 3,
             }
+            if include_id:
+                row['_id'] = r['id']
             if r.get('thinking_days') is not None:
                 row['고민기간'] = r['thinking_days']
             if r.get('repurchase_intent') is not None:

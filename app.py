@@ -55,7 +55,8 @@ from utils.auth import (
 try:
     from utils.database import (
         is_db_available, get_or_create_user, get_user_by_email,
-        save_purchases, load_purchases, get_purchase_count,
+        save_purchases, save_single_purchase, load_purchases,
+        delete_purchases, get_purchase_count,
         save_analysis, load_analyses, load_latest_analysis,
         log_ai_usage
     )
@@ -159,26 +160,59 @@ def display_sidebar():
 
         st.header(t('sample_download', lang))
 
-        # 샘플 CSV 데이터
-        if lang == 'ja':
-            sample_data = """日付,カテゴリ,商品名,金額,検討期間,再購入意向,使用頻度
-2024-01-15,電子製品,ワイヤレスイヤホン,89000,7,はい,5
-2024-01-20,衣類,冬コート,150000,14,いいえ,2
-2024-02-01,食費,デリバリー,25000,0,いいえ,1
-2024-02-05,趣味,ボードゲーム,45000,3,はい,4
-2024-02-10,電子製品,スマートウォッチ,280000,0,いいえ,1"""
+        # 샘플 CSV 파일 읽기
+        sample_file = Path(__file__).parent / "sample_purchases.csv"
+        if sample_file.exists():
+            with open(sample_file, 'r', encoding='utf-8') as f:
+                sample_data = f.read()
         else:
-            sample_data = """날짜,카테고리,상품명,금액,고민기간,재구매의향,사용빈도
-2024-01-15,전자제품,무선이어폰,89000,7,예,5
-2024-01-20,의류,겨울코트,150000,14,아니오,2
-2024-02-01,식비,배달음식,25000,0,아니오,1
-2024-02-05,취미,보드게임,45000,3,예,4
-2024-02-10,전자제품,스마트워치,280000,0,아니오,1
-2024-02-15,의류,운동화,120000,30,예,5
-2024-03-01,식비,커피,4500,0,아니오,3
-2024-03-05,취미,책,18000,7,예,4
-2024-03-10,전자제품,키보드,95000,5,예,5
-2024-03-15,의류,티셔츠,35000,2,아니오,3"""
+            sample_data = "날짜,카테고리,상품명,금액,고민기간,재구매의향,사용빈도\n"
+
+        # 일본어 모드: 전체 일본어로 변환
+        if lang == 'ja':
+            from utils.translations import JA_TO_KO_COLUMNS
+            ko_to_ja = {v: k for k, v in JA_TO_KO_COLUMNS.items()}
+            # 카테고리 매핑
+            cat_ko_to_ja = dict(zip(
+                TRANSLATIONS['ko']['categories'],
+                TRANSLATIONS['ja']['categories']
+            ))
+            # 상품명 매핑
+            product_ko_to_ja = {
+                '무선이어폰': 'ワイヤレスイヤホン', '겨울코트': '冬コート',
+                '배달음식': 'デリバリー', '보드게임': 'ボードゲーム',
+                '스마트워치': 'スマートウォッチ', '운동화': 'スニーカー',
+                '커피': 'コーヒー', '책': '本', '키보드': 'キーボード',
+                '티셔츠': 'Tシャツ', '외식': '外食', '마우스': 'マウス',
+                '청바지': 'ジーンズ', '영화관람': '映画鑑賞',
+                '태블릿PC': 'タブレットPC', '명품가방': 'ブランドバッグ',
+                '공연티켓': 'コンサートチケット', '카페': 'カフェ',
+                '케이블': 'ケーブル', '양말': '靴下',
+                '홈트레이닝기구': 'ホームトレーニング器具', '충전기': '充電器',
+                '반팔티': '半袖Tシャツ', '게임': 'ゲーム',
+                'VR헤드셋': 'VRヘッドセット', '세일코트': 'セールコート',
+                '미술용품': '美術用品', '안마기': 'マッサージ器',
+                '블루투스스피커': 'Bluetoothスピーカー',
+                '브랜드운동복': 'ブランドスポーツウェア', '드론': 'ドローン',
+                '액션캠': 'アクションカメラ', '한정판스니커즈': '限定版スニーカー',
+                '스마트홈기기': 'スマートホーム機器',
+                '디자이너자켓': 'デザイナージャケット',
+            }
+            lines = sample_data.strip().split('\n')
+            # 헤더 변환
+            header = lines[0]
+            for ko, ja in ko_to_ja.items():
+                header = header.replace(ko, ja)
+            # 데이터 행 변환
+            data_lines = []
+            for line in lines[1:]:
+                line = line.replace(',예,', ',はい,').replace(',아니오,', ',いいえ,')
+                for ko_cat, ja_cat in cat_ko_to_ja.items():
+                    line = line.replace(f',{ko_cat},', f',{ja_cat},')
+                for ko_prod, ja_prod in product_ko_to_ja.items():
+                    line = line.replace(f',{ko_prod},', f',{ja_prod},')
+                data_lines.append(line)
+            sample_data = header + '\n' + '\n'.join(data_lines) + '\n'
 
         st.download_button(
             label=t('sample_download', lang),
@@ -197,16 +231,16 @@ def display_sidebar():
         st.divider()
 
         # Buy Me a Coffee 후원 버튼
-        st.markdown("""
+        st.markdown(f"""
         <div class="support-section">
-            <h3>이 서비스가 도움이 되셨나요?</h3>
-            <p>커피 한 잔으로 후원해주세요!</p>
+            <h3>{t('support_title', lang)}</h3>
+            <p>{t('support_desc', lang)}</p>
             <a href="https://www.buymeacoffee.com/yourname" target="_blank">
                 <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee">
             </a>
             <br><br>
             <small style="color: #78350f;">
-            후원 링크 활성화: <a href="https://www.buymeacoffee.com" target="_blank">계정 생성</a> 후 app.py Line 135에서 'yourname' 변경
+            {t('support_guide', lang)}
             </small>
         </div>
         """, unsafe_allow_html=True)
@@ -221,22 +255,22 @@ def display_analysis_history():
 
     with st.sidebar:
         st.divider()
-        st.markdown(f"### {t('analysis_history', lang) if 'analysis_history' in TRANSLATIONS.get(lang, {}) else '분석 이력'}")
+        st.markdown(f"### {t('analysis_history', lang)}")
 
         analyses = load_analyses(user_id, limit=5)
         if not analyses:
-            st.caption("아직 분석 이력이 없습니다." if lang == 'ko' else "分析履歴がありません。")
+            st.caption(t('no_analysis_history', lang))
             return
 
         # 저장된 구매 이력 수
         purchase_count = get_purchase_count(user_id)
-        st.caption(f"{'저장된 구매' if lang == 'ko' else '保存された購入'}: {purchase_count}건")
+        st.caption(f"{t('saved_purchases', lang)}: {purchase_count}{t('count_unit', lang)}")
 
         for a in analyses:
             created = a.get('created_at', '')[:10]
             avg_score = a.get('average_regret_score', 0)
             count = a.get('purchase_count', 0)
-            label = f"{created} | {count}건 | 후회 {avg_score:.0f}점"
+            label = f"{created} | {count}{t('count_unit', lang)} | {t('regret_label', lang)} {avg_score:.0f}{t('score_unit', lang)}"
 
             with st.expander(label, expanded=False):
                 if a.get('psychology_analysis'):
@@ -283,16 +317,8 @@ def display_login_screen():
     with col2:
         st.markdown(f"### {t('login', lang)}")
 
-        st.markdown("""
-        **무료 플랜**:
-        - 분석 5회 무료 제공
-        - 모든 기능 이용 가능
-
-        **프리미엄 플랜** (월 5,000원):
-        - 무제한 분석
-        - AI 심리 분석 우선 지원
-        - 광고 제거
-        """)
+        st.markdown(t('free_plan_desc', lang))
+        st.markdown(t('premium_plan_desc', lang))
 
         # Google 로그인 버튼
         login_url = get_login_url()
@@ -320,40 +346,30 @@ def display_login_screen():
         """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.caption("로그인 시 [이용약관] 및 [개인정보 처리방침]에 동의하는 것으로 간주됩니다.")
+        st.caption(t('terms_agree', lang))
 
 
 def display_usage_limit_screen(remaining):
     """사용 횟수 제한 화면"""
-    st.warning(f"⚠️ 무료 사용 횟수가 {remaining}회 남았습니다.")
+    lang = get_lang()
+    st.warning(f"⚠️ {t('usage_warning', lang).format(remaining)}")
 
     if remaining == 0:
-        st.error("❌ 무료 사용 횟수를 모두 소진하셨습니다.")
+        st.error(f"❌ {t('usage_exhausted', lang)}")
 
-        st.markdown("### 프리미엄 플랜으로 업그레이드")
+        st.markdown(f"### {t('upgrade_title', lang)}")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("""
-            **무료 플랜**
-            - 분석 5회 제공
-            - 기본 기능 이용
-            - 광고 표시
-            """)
+            st.markdown(t('free_plan_features', lang))
 
         with col2:
-            st.markdown("""
-            **프리미엄 플랜** (월 5,000원)
-            - ✅ 무제한 분석
-            - ✅ AI 심리 분석 우선 지원
-            - ✅ 광고 제거
-            - ✅ 데이터 무제한 저장
-            """)
+            st.markdown(t('premium_plan_features', lang))
 
-        if st.button("프리미엄 구독하기", type="primary", use_container_width=True):
-            st.info("💳 결제 시스템은 곧 오픈 예정입니다!")
-            st.caption("현재는 데모 버전으로, 실제 결제는 베타 출시 후 가능합니다.")
+        if st.button(t('btn_subscribe', lang), type="primary", use_container_width=True):
+            st.info(f"💳 {t('payment_coming', lang)}")
+            st.caption(t('payment_demo', lang))
 
         return False
 
@@ -397,31 +413,29 @@ def upload_csv():
             processed_df = process_csv_data(df)
 
             # 후회 점수 계산
-            with st.spinner('🧮 후회 점수 계산 중...'):
+            with st.spinner(f'🧮 {t("calculating_regret", lang)}'):
                 processed_df = add_regret_scores_to_dataframe(processed_df)
 
-            st.success("후회 점수 계산 완료!")
+            st.success(t('regret_calc_complete', lang))
 
             return processed_df
 
         except Exception as e:
-            st.error(f"❌ 파일 처리 중 오류 발생: {str(e)}")
+            st.error(f"❌ {t('file_error', lang)}: {str(e)}")
             return None
 
     return None
 
 
-def manual_input_form():
-    """수동 입력 폼 처리"""
+def expense_tracker():
+    """가계부 - 지출 기록 + 누적 데이터 조회/삭제 + 분석"""
     lang = get_lang()
-    st.markdown(f"### {t('manual_title', lang)}")
-    st.markdown(t('manual_desc', lang))
+    user_id = st.session_state.get('db_user_id')
+    has_db = user_id and DB_AVAILABLE and is_db_available()
 
-    # 세션 상태에 수동 입력 리스트 초기화
-    if 'manual_items' not in st.session_state:
-        st.session_state.manual_items = []
+    # ===== 1. 빠른 기록 폼 =====
+    st.markdown(f"### {t('quick_add', lang)}")
 
-    # 입력 폼 (2열 레이아웃)
     col1, col2 = st.columns(2)
 
     with col1:
@@ -448,7 +462,6 @@ def manual_input_form():
         )
 
     with col2:
-        # 카테고리 (드롭다운 + 직접 입력)
         categories = t('categories', lang)
         category_options = categories + [t('category_custom', lang)]
         category_select = st.selectbox(
@@ -479,7 +492,6 @@ def manual_input_form():
             help=t('repurchase_help', lang)
         )
 
-    # 사용빈도 (전체 너비)
     usage_freq = st.slider(
         t('usage_freq', lang),
         min_value=1,
@@ -488,10 +500,8 @@ def manual_input_form():
         help=t('usage_help', lang)
     )
 
-    # 필요도 자동 계산 (실시간 표시)
     repurchase_bool = (repurchase_will == t('repurchase_yes', lang))
     necessity = calculate_necessity_from_input(thinking_days, repurchase_bool)
-
     necessity_labels = t('necessity_labels', lang)
 
     st.markdown(f"""
@@ -503,105 +513,130 @@ def manual_input_form():
     </div>
     """, unsafe_allow_html=True)
 
-    # 버튼 (2열)
-    btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 3])
+    # 저장 버튼
+    save_btn = st.button(t('btn_save', lang), type="primary", use_container_width=True)
 
-    with btn_col1:
-        save_btn = st.button(t('btn_save', lang), type="primary", use_container_width=True)
-
-    with btn_col2:
-        reset_btn = st.button(t('btn_reset', lang), use_container_width=True)
-
-    # 저장 버튼 처리
     if save_btn:
-        # 필수 필드 검증
         if not product_name.strip():
-            st.error("❌ 상품명을 입력해주세요.")
+            st.error(f"❌ {t('input_error_product', lang)}")
         elif not category.strip():
-            st.error("❌ 카테고리를 선택하거나 입력해주세요.")
+            st.error(f"❌ {t('input_error_category', lang)}")
         elif amount <= 0:
-            st.error("❌ 금액은 0보다 커야 합니다.")
+            st.error(f"❌ {t('input_error_amount', lang)}")
         else:
-            # 데이터 저장
             item = {
-                '날짜': pd.to_datetime(purchase_date),
+                '날짜': str(purchase_date),
                 '카테고리': category,
                 '상품명': product_name,
                 '금액': amount,
                 '필요도': necessity,
-                '사용빈도': usage_freq
+                '사용빈도': usage_freq,
+                '고민기간': thinking_days,
+                '재구매의향': '예' if repurchase_bool else '아니오'
             }
-            st.session_state.manual_items.append(item)
-            st.success(f"✅ '{product_name}' 저장 완료! (총 {len(st.session_state.manual_items)}건)")
+
+            if has_db:
+                save_single_purchase(user_id, item)
+            else:
+                # DB 없을 때 세션 fallback
+                if 'manual_items' not in st.session_state:
+                    st.session_state.manual_items = []
+                item['날짜'] = pd.to_datetime(purchase_date)
+                st.session_state.manual_items.append(item)
+
+            st.success(f"✅ '{product_name}' {t('purchase_saved', lang)}")
             st.balloons()
+            st.rerun()
 
-    # 초기화 버튼 처리
-    if reset_btn:
-        st.rerun()
+    st.divider()
 
-    # 저장된 항목 표시
-    if st.session_state.manual_items:
+    # ===== 2. 누적 데이터 목록 =====
+    st.markdown(f"### {t('my_purchases', lang)}")
+
+    # 기간 필터
+    from datetime import timedelta
+    period_options = {
+        t('period_1m', lang): 30,
+        t('period_3m', lang): 90,
+        t('period_6m', lang): 180,
+        t('period_all', lang): 0
+    }
+    selected_period = st.radio(
+        t('period_filter', lang),
+        options=list(period_options.keys()),
+        horizontal=True,
+        index=3  # 기본: 전체
+    )
+    days = period_options[selected_period]
+
+    # DB에서 데이터 로드
+    purchases_df = None
+    if has_db:
+        date_from = None
+        if days > 0:
+            date_from = (pd.Timestamp.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        purchases_df = load_purchases(user_id, date_from=date_from, include_id=True)
+    else:
+        # DB 없을 때 세션 fallback
+        if st.session_state.get('manual_items'):
+            purchases_df = pd.DataFrame(st.session_state.manual_items)
+            if '날짜' in purchases_df.columns:
+                purchases_df['날짜'] = pd.to_datetime(purchases_df['날짜'])
+
+    if purchases_df is not None and len(purchases_df) > 0:
+        st.caption(f"{t('total_records', lang)}: {len(purchases_df)}{t('count_unit', lang)}")
+
+        # 표시용 DataFrame
+        display_cols = ['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']
+        display_df = purchases_df[[c for c in display_cols if c in purchases_df.columns]].copy()
+        display_df['날짜'] = display_df['날짜'].dt.strftime('%Y-%m-%d')
+        display_df['금액'] = display_df['금액'].apply(lambda x: f"₩{x:,.0f}")
+
+        # 삭제용 체크박스 (DB 모드에서만)
+        if has_db and '_id' in purchases_df.columns:
+            display_df.insert(0, '✓', False)
+            edited_df = st.data_editor(
+                display_df,
+                use_container_width=True,
+                hide_index=True,
+                disabled=[c for c in display_df.columns if c != '✓'],
+                column_config={'✓': st.column_config.CheckboxColumn(t('select_to_delete', lang))}
+            )
+
+            # 삭제 버튼
+            selected_rows = edited_df[edited_df['✓'] == True]
+            if len(selected_rows) > 0:
+                if st.button(f"🗑️ {t('delete_selected', lang)} ({len(selected_rows)}{t('count_unit', lang)})", type="secondary"):
+                    ids_to_delete = purchases_df.iloc[selected_rows.index]['_id'].tolist()
+                    delete_purchases(user_id, ids_to_delete)
+                    st.success(f"🗑️ {len(ids_to_delete)}{t('purchases_deleted', lang)}")
+                    st.rerun()
+        else:
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
         st.divider()
-        st.markdown(f"### {t('saved_items', lang)}")
 
-        # 테이블로 표시
-        display_items = pd.DataFrame(st.session_state.manual_items)
-        display_items['날짜'] = display_items['날짜'].dt.strftime('%Y-%m-%d')
-        display_items['금액'] = display_items['금액'].apply(lambda x: f"₩{x:,.0f}")
+        # ===== 3. 분석 버튼 =====
+        if st.button(f"🚀 {t('analyze_accumulated', lang)}", type="primary", use_container_width=True):
+            with st.spinner(f'🧮 {t("processing_data", lang)}'):
+                # 분석용 데이터 준비 (_id 제외)
+                analysis_df = purchases_df.drop(columns=['_id'], errors='ignore').copy()
 
-        st.dataframe(
-            display_items,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        # 분석 시작 버튼
-        btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 2])
-
-        with btn_col1:
-            analyze_btn = st.button(
-                t('btn_analyze', lang),
-                type="primary",
-                use_container_width=True
-            )
-
-        with btn_col2:
-            clear_all_btn = st.button(
-                t('btn_clear', lang),
-                use_container_width=True
-            )
-
-        # 분석 시작 버튼 처리
-        if analyze_btn:
-            with st.spinner('🧮 데이터 처리 및 후회 점수 계산 중...'):
-                # DataFrame 생성
-                df = create_dataframe_from_manual_input(st.session_state.manual_items)
-
-                # 기존 파이프라인 재사용
-                # 1. 검증 (수동 입력이므로 이미 검증됨, 하지만 안전하게 한번 더)
-                is_valid, error_message = validate_csv(df)
-
+                # 기존 파이프라인 실행
+                is_valid, error_message = validate_csv(analysis_df)
                 if not is_valid:
-                    st.error(f"❌ 데이터 검증 실패: {error_message}")
+                    st.error(f"❌ {t('validation_failed', lang)}: {error_message}")
                     return None
 
-                # 2. 전처리
-                processed_df = process_csv_data(df)
-
-                # 3. 후회 점수 계산
+                processed_df = process_csv_data(analysis_df)
                 processed_df = add_regret_scores_to_dataframe(processed_df)
 
-                st.success("✅ 분석 완료!")
-                st.session_state.manual_items = []  # 분석 후 초기화
-                st.session_state.new_analysis = True  # 새 분석 플래그
-
+                st.success(f"✅ {t('analysis_done', lang)}")
+                st.session_state.new_analysis = True
                 return processed_df
 
-        # 전체 삭제 버튼 처리
-        if clear_all_btn:
-            st.session_state.manual_items = []
-            st.success("🗑️ 모든 항목이 삭제되었습니다.")
-            st.rerun()
+    else:
+        st.info(t('no_purchases_yet', lang))
 
     return None
 
@@ -684,7 +719,7 @@ def display_category_analysis(df: pd.DataFrame):
     display_summary = category_summary.copy()
     display_summary['총_금액'] = display_summary['총_금액'].apply(lambda x: f"₩{x:,.0f}")
     display_summary['평균_금액'] = display_summary['평균_금액'].apply(lambda x: f"₩{x:,.0f}")
-    display_summary.columns = ['카테고리', '총 금액', '평균 금액', '구매 건수', '평균 필요도', '평균 사용빈도']
+    display_summary.columns = [t('col_category', lang), t('col_total_amount', lang), t('col_avg_amount', lang), t('col_count', lang), t('col_avg_necessity', lang), t('col_avg_usage', lang)]
 
     st.dataframe(
         display_summary,
@@ -725,7 +760,7 @@ def display_regret_score_analysis(df: pd.DataFrame):
 
     # 전체 분석
     if '후회점수' not in df.columns:
-        st.warning("⚠️ 후회 점수가 계산되지 않았습니다.")
+        st.warning(f"⚠️ {t('regret_not_calculated', lang)}")
         return
 
     analysis = get_overall_regret_analysis(df)
@@ -819,9 +854,11 @@ def display_regret_score_analysis(df: pd.DataFrame):
 
     dist = analysis['distribution']
     grade_labels = t('grade_labels', lang)
+    col_grade = t('col_grade', lang)
+    col_count = t('col_count_short', lang)
     dist_df = pd.DataFrame({
-        '등급': grade_labels,
-        '건수': [dist['very_satisfied'], dist['satisfied'], dist['neutral'], dist['regretful'], dist['very_regretful']],
+        col_grade: grade_labels,
+        col_count: [dist['very_satisfied'], dist['satisfied'], dist['neutral'], dist['regretful'], dist['very_regretful']],
         '색상': ['#90EE90', '#FFFFE0', '#FFD700', '#FFA500', '#FF6B6B']
     })
 
@@ -829,22 +866,22 @@ def display_regret_score_analysis(df: pd.DataFrame):
 
     fig = px.bar(
         dist_df,
-        x='등급',
-        y='건수',
+        x=col_grade,
+        y=col_count,
         color='색상',
         color_discrete_map={color: color for color in dist_df['색상']},
-        text='건수'
+        text=col_count
     )
 
     fig.update_traces(
         textposition='outside',
-        hovertemplate='%{x}<br>건수: %{y}건<extra></extra>'
+        hovertemplate='%{x}<br>' + t('hover_count', lang) + ': %{y}' + t('count_unit', lang) + '<extra></extra>'
     )
 
     fig.update_layout(
         showlegend=False,
         xaxis_title='',
-        yaxis_title='구매 건수',
+        yaxis_title=t('axis_purchase_count', lang),
         height=350
     )
 
@@ -904,39 +941,41 @@ def display_regret_score_analysis(df: pd.DataFrame):
     st.subheader(t('factor_analysis', lang))
 
     factor_scores = {
-        '필요도-사용빈도 갭': df['후회점수_필요도갭'].mean(),
-        '시간 경과': df['후회점수_시간경과'].mean(),
-        '금액 가중치': df['후회점수_금액'].mean(),
-        '최근성': df['후회점수_최근성'].mean(),
-        '반복 구매': df['후회점수_반복구매'].mean(),
-        '새벽 구매': df['후회점수_새벽구매'].mean(),
-        '충동 패턴': df['후회점수_충동패턴'].mean()
+        t('factor_necessity_gap', lang): df['후회점수_필요도갭'].mean(),
+        t('factor_time_decay', lang): df['후회점수_시간경과'].mean(),
+        t('factor_amount', lang): df['후회점수_금액'].mean(),
+        t('factor_recency', lang): df['후회점수_최근성'].mean(),
+        t('factor_repeat', lang): df['후회점수_반복구매'].mean(),
+        t('factor_night', lang): df['후회점수_새벽구매'].mean(),
+        t('factor_impulse', lang): df['후회점수_충동패턴'].mean()
     }
 
+    col_factor = t('col_factor', lang)
+    col_avg_score = t('col_avg_score', lang)
     factor_df = pd.DataFrame({
-        '요인': list(factor_scores.keys()),
-        '평균 점수': list(factor_scores.values())
-    }).sort_values('평균 점수', ascending=False)
+        col_factor: list(factor_scores.keys()),
+        col_avg_score: list(factor_scores.values())
+    }).sort_values(col_avg_score, ascending=False)
 
     fig = px.bar(
         factor_df,
-        x='평균 점수',
-        y='요인',
+        x=col_avg_score,
+        y=col_factor,
         orientation='h',
-        text='평균 점수',
-        color='평균 점수',
+        text=col_avg_score,
+        color=col_avg_score,
         color_continuous_scale='Reds'
     )
 
     fig.update_traces(
         texttemplate='%{text:.1f}',
         textposition='outside',
-        hovertemplate='%{y}<br>평균: %{x:.1f}점<extra></extra>'
+        hovertemplate='%{y}<br>' + t('hover_avg', lang) + ': %{x:.1f}' + t('score_unit', lang) + '<extra></extra>'
     )
 
     fig.update_layout(
         showlegend=False,
-        xaxis_title='평균 점수',
+        xaxis_title=col_avg_score,
         yaxis_title='',
         height=350
     )
@@ -945,37 +984,7 @@ def display_regret_score_analysis(df: pd.DataFrame):
 
     # 각 요인 설명
     with st.expander(t('factor_explain', lang)):
-        st.markdown("""
-        ### 각 요인이 후회 점수에 미치는 영향
-
-        1. **필요도-사용빈도 갭** (최대 30점)
-           - 구매 당시 필요하다고 생각한 정도와 실제 사용 빈도의 차이
-           - 갭이 클수록 후회 점수 증가
-
-        2. **시간 경과** (최대 15점)
-           - 오래전에 구매했는데 사용빈도가 낮으면 점수 증가
-           - 시간이 지날수록 가중치 증가
-
-        3. **금액 가중치** (최대 20점)
-           - 고가 제품일수록 후회 시 심리적 부담이 크므로 가중치 증가
-           - 평균 구매 금액 대비 비율로 계산
-
-        4. **최근성** (최대 10점)
-           - 최근 구매는 충동 구매 가능성이 높음
-           - 3일 이내 구매 시 높은 점수
-
-        5. **반복 구매** (최대 15점)
-           - 같은 카테고리를 짧은 시간 내 반복 구매 시 충동 구매 의심
-           - 30일 내 동일 카테고리 구매 건수로 계산
-
-        6. **새벽 구매** (최대 10점)
-           - 새벽(00:00-05:00) 시간대 구매는 충동 구매 가능성 높음
-           - CSV에 시간 정보가 없으면 0점
-
-        7. **충동 패턴** (최대 10점)
-           - 하루에 여러 건 구매 또는 연속된 날짜에 구매 시 충동 패턴 감지
-           - 같은 날 3건 이상 또는 3일 내 5건 이상 시 높은 점수
-        """)
+        st.markdown(t('factor_explain_text', lang))
 
 
 def display_ai_analysis(df: pd.DataFrame):
@@ -987,21 +996,13 @@ def display_ai_analysis(df: pd.DataFrame):
     # OpenAI 모듈 및 API 키 확인
     if not OPENAI_AVAILABLE:
         api_available = False
-        api_message = "OpenAI 라이브러리가 설치되지 않았습니다."
+        api_message = t('openai_not_installed', lang)
     else:
         api_available, api_message = check_api_key_available()
 
     if not api_available:
         st.warning(f"{api_message}")
-        st.info("""
-        **OpenAI API 키 설정 방법**:
-        1. `.env` 파일을 프로젝트 루트에 생성
-        2. 다음 내용 추가: `OPENAI_API_KEY=sk-your-api-key-here`
-        3. OpenAI 플랫폼(https://platform.openai.com/api-keys)에서 API 키 발급
-        4. 앱 재시작
-
-        API 키가 없어도 기본 분석은 계속 이용 가능합니다!
-        """)
+        st.info(t('openai_setup_guide', lang))
 
         # API 키 없이도 기본 팁 제공
         if '후회점수' in df.columns:
@@ -1020,11 +1021,7 @@ def display_ai_analysis(df: pd.DataFrame):
                 tips = None
 
             if not tips:
-                tips = [
-                    "구매 전 24시간 고민 시간을 가져보세요.",
-                    "구매 목록을 미리 작성하는 습관을 들여보세요.",
-                    "장바구니에 담고 3일 후 다시 확인하세요."
-                ]
+                tips = t('default_tips', lang)
 
             for tip in tips:
                 st.markdown(f"- {tip}")
@@ -1033,7 +1030,7 @@ def display_ai_analysis(df: pd.DataFrame):
 
     # 후회 점수 확인
     if '후회점수' not in df.columns:
-        st.warning("후회 점수가 계산되지 않았습니다.")
+        st.warning(t('regret_not_calculated', lang))
         return
 
     # 전체 분석 데이터 준비
@@ -1058,24 +1055,16 @@ def display_ai_analysis(df: pd.DataFrame):
     if st.button(t('btn_ai', lang), type="primary", use_container_width=True):
         with st.spinner(t('ai_analyzing', lang)):
             if not OPENAI_AVAILABLE:
-                st.error("OpenAI 라이브러리가 설치되지 않았습니다.")
+                st.error(t('openai_not_installed', lang))
                 return
 
             openai_service = get_openai_service()
             if not openai_service:
-                st.error("OpenAI 서비스를 초기화할 수 없습니다.")
+                st.error(t('openai_init_error', lang))
                 return
 
             # 주요 원인 변환
-            cause_names = {
-                '필요도갭': '필요도-사용빈도 갭',
-                '시간경과': '시간 경과 대비 낮은 사용빈도',
-                '금액': '고가 제품 구매',
-                '최근성': '최근 충동 구매',
-                '반복구매': '동일 카테고리 반복 구매',
-                '새벽구매': '새벽 시간대 구매',
-                '충동패턴': '충동 구매 패턴'
-            }
+            cause_names = t('cause_names', lang)
             main_cause = cause_names.get(
                 analysis['main_cause']['name'],
                 analysis['main_cause']['name']
@@ -1161,20 +1150,20 @@ def display_ai_analysis(df: pd.DataFrame):
 
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("입력 토큰", f"{total_prompt:,}")
+                        st.metric(t('token_input', lang), f"{total_prompt:,}")
                     with col2:
-                        st.metric("출력 토큰", f"{total_completion:,}")
+                        st.metric(t('token_output', lang), f"{total_completion:,}")
                     with col3:
-                        st.metric("총 토큰", f"{total_all:,}")
+                        st.metric(t('token_total', lang), f"{total_all:,}")
 
                     prompt_cost = total_prompt * 0.15 / 1_000_000
                     completion_cost = total_completion * 0.60 / 1_000_000
                     total_cost = prompt_cost + completion_cost
-                    st.info(f"예상 비용: ${total_cost:.6f} (약 ₩{total_cost * 1300:.2f})")
+                    st.info(f"{t('cost_estimate', lang)}: ${total_cost:.6f} (≈ ₩{total_cost * 1300:.2f})")
             else:
                 error_msg = feedback_result.get('error', '') or insights_result.get('error', '')
                 st.error(f"{error_msg}")
-                st.info("API 키를 확인하거나 잠시 후 다시 시도해주세요.")
+                st.info(t('api_retry', lang))
 
     # 이전에 생성된 결과가 있으면 표시
     elif 'ai_feedback' in st.session_state or 'smart_insights' in st.session_state:
@@ -1194,17 +1183,8 @@ def display_ai_analysis(df: pd.DataFrame):
         st.info(t('ai_guide', lang))
 
         with st.expander(t('ai_preview', lang)):
-            st.markdown("""
-            **소비 심리 분석**
-            - 소비 패턴 요약 및 주요 후회 원인 분석
-            - 실천 가능한 개선 방안과 월간 도전 과제
-
-            **스마트 인사이트**
-            - 각 구매의 소비패턴 분류 (스트레스성, 충동적, 계획적 등)
-            - 유사 사용자 재구매율 추정
-            - 카테고리별 장기 저축 효과 시뮬레이션
-            - 추천 구매목록 TOP 5 (쿠팡 링크 포함)
-            """)
+            st.markdown(t('preview_psychology', lang))
+            st.markdown(t('preview_insights', lang))
 
 
 def prepare_smart_insights_data(df):
@@ -1268,9 +1248,9 @@ def display_savings_calculator(df):
     for cat, monthly_avg in category_monthly.items():
         annual_saving = monthly_avg * (reduction / 100) * 12
         savings_data.append({
-            '카테고리': cat,
-            '월 평균 지출': f"₩{monthly_avg:,.0f}",
-            f'{reduction}% 절감 시 연간 저축': f"₩{annual_saving:,.0f}"
+            t('col_category', lang): cat,
+            t('col_monthly_avg', lang): f"₩{monthly_avg:,.0f}",
+            f'{reduction}{t("col_annual_saving", lang)}': f"₩{annual_saving:,.0f}"
         })
 
     st.dataframe(pd.DataFrame(savings_data), use_container_width=True, hide_index=True)
@@ -1285,20 +1265,12 @@ def display_savings_calculator(df):
 
 def display_adsense_ad():
     """Google AdSense 광고 표시"""
-    # 광고 코드 (사용자가 실제 Publisher ID와 Ad Slot ID로 변경 필요)
-    ad_code = """
+    lang = get_lang()
+    ad_code = f"""
     <div style="text-align: center; padding: 20px 0;">
-        <p style="color: gray; font-size: 12px; margin-bottom: 10px;">Sponsored</p>
+        <p style="color: gray; font-size: 12px; margin-bottom: 10px;">{t('ad_sponsored', lang)}</p>
 
         <!-- Google AdSense 광고 코드 -->
-        <!--
-        실제 광고를 활성화하려면:
-        1. https://www.google.com/adsense 에서 계정 생성 및 승인 대기
-        2. 광고 단위 생성 후 아래 주석을 해제하고 실제 코드로 교체
-        3. ca-pub-XXXXXXXX를 본인의 Publisher ID로 변경
-        4. data-ad-slot="XXXXXXXXXX"를 실제 광고 슬롯 ID로 변경
-        -->
-
         <!--
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXX"
              crossorigin="anonymous"></script>
@@ -1309,15 +1281,14 @@ def display_adsense_ad():
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
         <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
+             (adsbygoogle = window.adsbygoogle || []).push({{}});
         </script>
         -->
 
-        <!-- 임시 플레이스홀더 (실제 광고 승인 전) -->
         <div style="background-color: #f0f0f0; padding: 60px 20px; border-radius: 5px; border: 1px dashed #ccc;">
             <p style="color: #666; margin: 0;">
-                📢 광고 영역<br>
-                <small>AdSense 승인 후 광고가 표시됩니다</small>
+                📢 {t('ad_area', lang)}<br>
+                <small>{t('ad_placeholder', lang)}</small>
             </p>
         </div>
     </div>
@@ -1519,15 +1490,21 @@ def main():
     # 데이터 입력 (탭)
     st.header(t('data_input', lang))
 
-    tab1, tab2 = st.tabs([t('tab_manual', lang), t('tab_csv', lang)])
+    tab1, tab2 = st.tabs([t('expense_tracker', lang), t('tab_csv', lang)])
 
     processed_df = None
 
     with tab1:
-        processed_df = manual_input_form()
+        processed_df = expense_tracker()
 
     with tab2:
-        processed_df = upload_csv()
+        csv_result = upload_csv()
+        if csv_result is not None:
+            processed_df = csv_result
+            # CSV 업로드 시 DB에도 저장
+            user_id = st.session_state.get('db_user_id')
+            if user_id and DB_AVAILABLE and is_db_available():
+                save_purchases(user_id, csv_result, 'csv')
 
     if processed_df is not None:
         # 세션 상태에 저장
@@ -1537,12 +1514,6 @@ def main():
         if st.session_state.get('new_analysis', False):
             increment_usage_count(user_email)
             st.session_state.new_analysis = False
-
-            # DB에 구매 이력 저장
-            user_id = st.session_state.get('db_user_id')
-            if user_id and DB_AVAILABLE and is_db_available():
-                source = 'csv' if st.session_state.get('last_uploaded_file') else 'manual'
-                save_purchases(user_id, processed_df, source)
 
     # 데이터가 있으면 분석 표시
     if st.session_state.processed_df is not None:

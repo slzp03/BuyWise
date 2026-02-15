@@ -6,12 +6,13 @@
 
 ## 프로젝트 개요
 
-**AI 구매 후회 방지 분석기** (Smart Purchase Analyzer)
+**AI 구매 후회 방지 분석기** (Smart Purchase Analyzer / BuyWise)
 
 - 해커톤 제출용 MVP
-- CSV/수동 입력 구매 내역 분석 → 후회 점수 계산 → AI 심리 분석
+- 가계부 기록 / CSV 업로드 → 후회 점수 계산 → AI 심리 분석
 - 충동 구매 방지 및 소비 습관 개선
 - 다국어 지원 (한국어, 일본어)
+- 웹앱 (Streamlit) + 모바일 앱 (Flutter, 개발 중)
 
 ---
 
@@ -25,6 +26,7 @@
 | AI | OpenAI SDK (GPT-4o-mini) | 소비 심리 분석 |
 | DB | Supabase (PostgreSQL) | 사용자/구매/분석 이력 저장 |
 | 인증 | Google OAuth 2.0 | 로그인, 사용 횟수 관리 |
+| 모바일 | Flutter 3.2+ / Dart | iOS/Android 크로스플랫폼 앱 |
 | 배포 | Streamlit Cloud (예정) | GitHub 연동 자동 배포 |
 
 ---
@@ -33,7 +35,7 @@
 
 ```
 project/
-├── app.py                    # 메인 Streamlit 앱 (1550+ 줄)
+├── app.py                    # 메인 Streamlit 앱 (1600+ 줄)
 ├── utils/
 │   ├── __init__.py
 │   ├── csv_processor.py      # CSV 검증/전처리, 일본어 CSV 지원
@@ -43,11 +45,22 @@ project/
 │   ├── auth.py               # Google OAuth + DB/JSON fallback
 │   ├── database.py           # Supabase CRUD (users, purchases, analyses, ai_usage_logs)
 │   └── translations.py       # 다국어 번역 (ko/ja) + CSV 컬럼 매핑
+├── mobile/                   # Flutter 모바일 앱 (개발 중)
+│   ├── lib/
+│   │   ├── main.dart         # 앱 진입점
+│   │   ├── config/           # 상수
+│   │   ├── l10n/             # 다국어 (ko/ja)
+│   │   ├── models/           # User, Purchase, Analysis
+│   │   ├── services/         # Supabase, Auth, OpenAI, RegretCalculator
+│   │   ├── screens/          # Login, Home, ExpenseTracker, Analysis, History, Settings
+│   │   └── widgets/          # PurchaseForm, PurchaseList, Charts
+│   ├── pubspec.yaml
+│   └── .env
 ├── data/
 │   └── .gitkeep              # users.json, session.json은 Git 제외
-├── supabase_schema.sql       # DB 테이블 생성 SQL (Supabase SQL Editor에서 실행)
+├── supabase_schema.sql       # DB 테이블 생성 SQL
 ├── sample_purchases.csv      # 샘플 데이터 35건 (후회성 구매 포함)
-├── requirements.txt          # 패키지 의존성
+├── requirements.txt          # Python 패키지 의존성
 ├── .env                      # 환경 변수 (Git 제외)
 ├── .gitignore
 ├── CLAUDE.md                 # 이 파일
@@ -73,7 +86,15 @@ SUPABASE_KEY=eyJhbGci...
 
 ## 핵심 기능
 
-### 1. 후회 점수 계산 (7요소, 100점 만점)
+### 1. 가계부 (Phase 4.5)
+- 간편 지출 기록: 상품명, 금액, 카테고리, 고민기간, 재구매의향, 사용빈도
+- 고민기간 + 재구매의향 → 필요도 자동 계산
+- Supabase DB 즉시 저장 (`save_single_purchase()`)
+- 기간 필터 (1개월/3개월/6개월/전체) - DB 쿼리 레벨 필터링
+- `st.data_editor` 체크박스로 선택 삭제
+- 누적 데이터로 분석 실행
+
+### 2. 후회 점수 계산 (7요소, 100점 만점)
 | 요소 | 최대 점수 | 설명 |
 |------|-----------|------|
 | 필요도-사용빈도 갭 | 30 | 핵심 지표 |
@@ -87,31 +108,27 @@ SUPABASE_KEY=eyJhbGci...
 - 식비 카테고리: 필요도갭/시간경과 점수를 0으로 처리 (먹으면 끝이므로)
 - 점수 해석: 0-20 매우만족, 21-35 만족, 36-50 보통, 51-65 아쉬움, 66-100 후회
 
-### 2. AI 통합 분석 (GPT-4o-mini)
+### 3. AI 통합 분석 (GPT-4o-mini)
 - 버튼 1개로 2회 API 동시 호출:
   - **심리 분석**: 소비 패턴 요약, 후회 원인 3가지, 개선 방안, 월간 목표
   - **스마트 인사이트**: 소비패턴 분류, 재구매율, 저축 효과, 추천 TOP 5 (쿠팡 링크), 절약 추천 TOP 5
 - 일본어 모드: 프롬프트/응답 전부 일본어, Amazon.co.jp 링크
-- 비용: 1회 약 $0.0006
+- 비용: 1회 약 $0.001
 
-### 3. Supabase DB (Phase 4 완료)
+### 4. Supabase DB
 4개 테이블:
 - `users`: 사용자 정보 (OAuth, 사용횟수, 구독, 언어)
-- `purchases`: 구매 이력 (CSV/수동 입력 영구 저장)
+- `purchases`: 구매 이력 (가계부/CSV 영구 저장)
 - `analyses`: AI 분석 결과 이력
 - `ai_usage_logs`: API 토큰 사용량/비용 추적
 
 DB 불가 시 기존 JSON 방식 자동 fallback.
 
-### 4. 다국어 (한국어/일본어)
+### 5. 다국어 (한국어/일본어)
 - `translations.py`: `t(key, lang)` 헬퍼 함수로 UI 텍스트 전환
-- CSV: 일본어 컬럼명 자동 감지/변환 (`日付`→`날짜`, `カテゴリ`→`카테고리` 등)
+- 모든 UI 텍스트 번역 완료 (하드코딩 Korean 없음)
+- CSV: 일본어 컬럼명 자동 감지/변환
 - 사이드바에서 언어 전환 (로그인 전/후 모두)
-
-### 5. 수동 입력
-- 고민기간 + 재구매의향 → 필요도 자동 계산
-- 다중 항목 누적 입력 후 일괄 분석
-- CSV 파이프라인 재사용
 
 ### 6. Google OAuth + 사용 횟수 제한
 - 무료 5회, 프리미엄 무제한
@@ -122,19 +139,30 @@ DB 불가 시 기존 JSON 방식 자동 fallback.
 - Buy Me a Coffee (사이드바)
 - Google AdSense (후회 점수 ↔ AI 분석 사이)
 
+### 8. Flutter 모바일 앱 (개발 중)
+- `mobile/` 디렉토리에 별도 프로젝트
+- 같은 Supabase DB 공유 (웹 ↔ 앱 데이터 동기화)
+- 후회점수 7요소 알고리즘 Dart 변환 완료
+- 4탭 구조: 가계부, 분석, 이력, 설정
+- Google OAuth + OpenAI API 연동 코드 작성 완료
+- Flutter SDK 설치 후 빌드 가능
+
 ---
 
 ## 주요 코드 위치
 
 ### app.py
 - `main()` - OAuth → 사용 횟수 → DB 연동 → 데이터 입력 → 분석
-- `upload_csv()` / `manual_input_form()` - 데이터 입력 + DB 저장
+- `expense_tracker()` - 가계부 (빠른 기록 + 이력 조회 + 기간 필터 + 삭제)
+- `upload_csv()` - CSV 업로드 + DB 저장
 - `display_ai_analysis()` - AI 분석 + DB에 결과/사용량 저장
 - `display_analysis_history()` - 사이드바 분석 이력 (DB)
 
 ### utils/database.py
 - `get_or_create_user()` - 로그인 시 DB 유저 생성/조회
-- `save_purchases()` / `load_purchases()` - 구매 이력 CRUD
+- `save_single_purchase()` - 가계부 개별 저장
+- `save_purchases()` / `load_purchases()` - 구매 이력 CRUD (기간 필터 지원)
+- `delete_purchases()` - 선택 삭제
 - `save_analysis()` / `load_analyses()` - 분석 결과 CRUD
 - `log_ai_usage()` - API 사용량 기록
 
@@ -151,11 +179,19 @@ DB 불가 시 기존 JSON 방식 자동 fallback.
 - `generate_ai_feedback()` - 심리 분석 (language 파라미터)
 - `generate_smart_insights()` - 스마트 인사이트 + 절약 추천
 
+### mobile/lib/
+- `main.dart` - 앱 진입점 (Supabase 초기화, Provider)
+- `services/regret_calculator.dart` - 후회점수 알고리즘 (Python→Dart)
+- `services/supabase_service.dart` - DB CRUD
+- `services/openai_service.dart` - AI 분석
+- `screens/expense_tracker_screen.dart` - 가계부 화면
+- `screens/analysis_screen.dart` - 분석 화면
+
 ---
 
 ## CSV 형식
 
-### 권장 형식 (수동 입력과 동일)
+### 권장 형식 (가계부와 동일)
 ```csv
 날짜,카테고리,상품명,금액,고민기간,재구매의향,사용빈도
 2024-01-15,전자제품,무선이어폰,89000,7,예,5
@@ -201,6 +237,8 @@ streamlit run app.py
 | 3 | Google OAuth + 사용 횟수 제한 | 완료 |
 | 3.5 | 스마트 인사이트 + UI 개선 + 일본어 | 완료 |
 | 4 | Supabase DB 통합 (4개 테이블) | 완료 |
+| 4.5 | 가계부 기능 + 일본어 완전 대응 | 완료 |
+| 4.6 | Flutter 모바일 앱 코드 작성 | 완료 |
 
 ## 다음 단계
 
@@ -209,10 +247,10 @@ streamlit run app.py
 - [ ] Google OAuth redirect_uri 업데이트
 - [ ] 시연 영상 제작
 
-### Phase 6: 고급 기능 (해커톤 이후)
-- [ ] FastAPI 백엔드 분리
-- [ ] React 프론트엔드
-- [ ] Stripe 결제 통합
+### Phase 6: 모바일 앱 배포 (해커톤 이후)
+- [ ] Flutter SDK 설치 + 빌드 테스트
+- [ ] Android 앱 Google Play 배포
+- [ ] PWA 지원 검토
 
 ---
 
@@ -224,9 +262,11 @@ streamlit run app.py
 - DB는 **Supabase 우선, JSON fallback**
 - UI 텍스트는 **t(key, lang)** 함수 사용
 - CSV는 **한국어/일본어/기존 형식** 모두 지원
+- 수동 입력은 **가계부(expense_tracker)** 로 변경됨
+- Flutter 앱은 **mobile/** 디렉토리, Streamlit과 독립
 
 ---
 
-**마지막 업데이트**: 2026-02-14
-**버전**: 2.0.0
-**상태**: MVP + 수동입력 + OAuth + AI분석 + 다국어 + Supabase DB 완료
+**마지막 업데이트**: 2026-02-15
+**버전**: 2.1.0
+**상태**: 웹앱(가계부+AI분석+다국어+DB) 완료 + Flutter 앱 코드 작성 완료

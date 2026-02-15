@@ -1,0 +1,28 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+
+# Environment
+.env
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/release/
+
+# Generated
+*.g.dart
+*.freezed.dart
+.flutter-plugins
+.flutter-plugins-dependencies
