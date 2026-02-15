@@ -238,10 +238,6 @@ def display_sidebar():
             <a href="https://buymeacoffee.com/m.kim" target="_blank">
                 <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee">
             </a>
-            <br><br>
-            <small style="color: #78350f;">
-            {t('support_guide', lang)}
-            </small>
         </div>
         """, unsafe_allow_html=True)
 
