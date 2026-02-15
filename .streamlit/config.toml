@@ -15,6 +15,10 @@ textColor = "#111827"
 # Options: "sans serif", "serif", or "monospace"
 font = "sans serif"
 
+[client]
+# Hide toolbar (hamburger menu, Manage app button)
+toolbarMode = "minimal"
+
 [server]
 # Disable XSRF protection for easier development
 enableXsrfProtection = false
