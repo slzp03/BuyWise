@@ -235,7 +235,7 @@ def display_sidebar():
         <div class="support-section">
             <h3>{t('support_title', lang)}</h3>
             <p>{t('support_desc', lang)}</p>
-            <a href="https://www.buymeacoffee.com/yourname" target="_blank">
+            <a href="https://buymeacoffee.com/m.kim" target="_blank">
                 <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee">
             </a>
             <br><br>
