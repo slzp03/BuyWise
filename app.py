@@ -284,8 +284,11 @@ def display_login_screen():
     <style>
         [data-testid="stToolbar"] {display: none !important;}
         [data-testid="stStatusWidget"] {display: none !important;}
+        [data-testid="manage-app-button"] {display: none !important;}
         .stDeployButton {display: none !important;}
+        .stAppDeployButton {display: none !important;}
         #MainMenu {visibility: hidden !important;}
+        header {visibility: hidden !important;}
         footer {visibility: hidden !important;}
     </style>
     """, unsafe_allow_html=True)
