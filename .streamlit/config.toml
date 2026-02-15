@@ -1,0 +1,30 @@
+[theme]
+# Primary brand color
+primaryColor = "#6366f1"
+
+# Background color for the main content area
+backgroundColor = "#f9fafb"
+
+# Background color used for the sidebar and most interactive widgets
+secondaryBackgroundColor = "#ffffff"
+
+# Color used for almost all text
+textColor = "#111827"
+
+# Font family for all text in the app
+# Options: "sans serif", "serif", or "monospace"
+font = "sans serif"
+
+[server]
+# Disable XSRF protection for easier development
+enableXsrfProtection = false
+
+# Enable CORS for API requests
+enableCORS = false
+
+# Maximum upload size (in MB)
+maxUploadSize = 5
+
+[browser]
+# Automatically open browser when server starts
+gatherUsageStats = false

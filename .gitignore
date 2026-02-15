@@ -9,8 +9,8 @@ env/
 ENV/
 .venv
 
-# Streamlit
-.streamlit/
+# Streamlit (secrets만 제외, config.toml은 포함)
+.streamlit/secrets.toml
 
 # 환경 변수
 .env
