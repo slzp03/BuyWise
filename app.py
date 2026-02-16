@@ -331,21 +331,9 @@ def display_login_screen():
         st.markdown(t('free_plan_desc', lang))
         st.markdown(t('premium_plan_desc', lang))
 
-        # Google 로그인 버튼
+        # Google 로그인 버튼 (새 탭에서 열림)
         login_url = get_login_url()
-
-        # 버튼 클릭 → rerun → meta refresh로 같은 창에서 리다이렉트
-        if st.session_state.get('do_google_login', False):
-            st.session_state.do_google_login = False
-            st.markdown(
-                f'<meta http-equiv="refresh" content="0;url={login_url}">',
-                unsafe_allow_html=True
-            )
-            st.stop()
-
-        if st.button(f"🔐 {t('google_login', lang)}", use_container_width=True, type="primary"):
-            st.session_state.do_google_login = True
-            st.rerun()
+        st.link_button(f"🔐 {t('google_login', lang)}", login_url, use_container_width=True, type="primary")
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))
