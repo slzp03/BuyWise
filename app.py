@@ -335,7 +335,7 @@ def display_login_screen():
         login_url = get_login_url()
 
         st.markdown(f"""
-        <a href="{login_url}" target="_self">
+        <a href="{login_url}" target="_top">
             <button style="
                 background-color: #4285f4;
                 color: white;
