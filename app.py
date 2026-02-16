@@ -334,27 +334,15 @@ def display_login_screen():
         # Google 로그인 버튼
         login_url = get_login_url()
 
-        st.markdown(f"""
-        <a href="{login_url}" target="_self">
-            <button style="
-                background-color: #4285f4;
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 4px;
-                font-size: 16px;
-                cursor: pointer;
-                width: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            ">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                     style="width: 20px; margin-right: 10px;">
-                {t('google_login', lang)}
-            </button>
-        </a>
-        """, unsafe_allow_html=True)
+        if st.button(f"🔐 {t('google_login', lang)}", use_container_width=True, type="primary"):
+            st.session_state.do_google_login = True
+            st.rerun()
+
+        # 버튼 클릭 후 리다이렉트 (최상위 윈도우에서 이동)
+        if st.session_state.get('do_google_login', False):
+            st.session_state.do_google_login = False
+            import streamlit.components.v1 as comp
+            comp.html(f'<script>window.top.location.href = "{login_url}";</script>', height=0)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))
