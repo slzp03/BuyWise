@@ -334,15 +334,18 @@ def display_login_screen():
         # Google 로그인 버튼
         login_url = get_login_url()
 
+        # 버튼 클릭 → rerun → meta refresh로 같은 창에서 리다이렉트
+        if st.session_state.get('do_google_login', False):
+            st.session_state.do_google_login = False
+            st.markdown(
+                f'<meta http-equiv="refresh" content="0;url={login_url}">',
+                unsafe_allow_html=True
+            )
+            st.stop()
+
         if st.button(f"🔐 {t('google_login', lang)}", use_container_width=True, type="primary"):
             st.session_state.do_google_login = True
             st.rerun()
-
-        # 버튼 클릭 후 리다이렉트 (최상위 윈도우에서 이동)
-        if st.session_state.get('do_google_login', False):
-            st.session_state.do_google_login = False
-            import streamlit.components.v1 as comp
-            comp.html(f'<script>window.top.location.href = "{login_url}";</script>', height=0)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))
