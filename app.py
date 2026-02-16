@@ -334,25 +334,28 @@ def display_login_screen():
         # Google 로그인 버튼
         login_url = get_login_url()
 
-        st.markdown(f"""
-        <button onclick="window.top.location.href='{login_url}'" style="
-            background-color: #4285f4;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        ">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                 style="width: 20px; margin-right: 10px;">
-            {t('google_login', lang)}
-        </button>
-        """, unsafe_allow_html=True)
+        components.html(f"""
+        <a href="{login_url}" target="_top" style="text-decoration: none;">
+            <button style="
+                background-color: #4285f4;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+                cursor: pointer;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            ">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                     style="width: 20px; margin-right: 10px;">
+                {t('google_login', lang)}
+            </button>
+        </a>
+        """, height=55)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))
