@@ -66,8 +66,7 @@ def get_login_url() -> str:
     flow = get_google_oauth_flow()
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true',
-        prompt='consent'
+        include_granted_scopes='true'
     )
 
     # state를 세션에 저장 (CSRF 방지)
