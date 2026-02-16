@@ -9,6 +9,8 @@ import streamlit as st
 from pathlib import Path
 from typing import Optional, Dict, Tuple
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Streamlit Cloud 프록시 대응
+
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -64,7 +66,8 @@ def get_login_url() -> str:
     flow = get_google_oauth_flow()
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true'
+        include_granted_scopes='true',
+        prompt='consent'
     )
 
     # state를 세션에 저장 (CSRF 방지)
