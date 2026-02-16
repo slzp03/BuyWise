@@ -335,25 +335,23 @@ def display_login_screen():
         login_url = get_login_url()
 
         st.markdown(f"""
-        <a href="{login_url}" target="_top">
-            <button style="
-                background-color: #4285f4;
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 4px;
-                font-size: 16px;
-                cursor: pointer;
-                width: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            ">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                     style="width: 20px; margin-right: 10px;">
-                {t('google_login', lang)}
-            </button>
-        </a>
+        <button onclick="window.top.location.href='{login_url}'" style="
+            background-color: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        ">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                 style="width: 20px; margin-right: 10px;">
+            {t('google_login', lang)}
+        </button>
         """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
