@@ -1437,6 +1437,7 @@ def main():
     display_header()
 
     # 모바일용 계정 expander (사이드바 접근 어려울 때)
+    lang = get_lang()
     with st.expander(f"👤 {user_info['name']} | {t('my_account', lang)}"):
         exp_col1, exp_col2 = st.columns([3, 1])
         with exp_col1:
