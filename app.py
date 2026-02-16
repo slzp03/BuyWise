@@ -503,10 +503,14 @@ def expense_tracker():
     </div>
     """, unsafe_allow_html=True)
 
-    # 저장 버튼
-    save_btn = st.button(t('btn_save', lang), type="primary", use_container_width=True)
+    # 대기 목록 초기화
+    if 'pending_items' not in st.session_state:
+        st.session_state.pending_items = []
 
-    if save_btn:
+    # 목록에 추가 버튼
+    add_btn = st.button(t('btn_add_to_list', lang), type="secondary", use_container_width=True)
+
+    if add_btn:
         if not product_name.strip():
             st.error(f"❌ {t('input_error_product', lang)}")
         elif not category.strip():
@@ -524,19 +528,44 @@ def expense_tracker():
                 '고민기간': thinking_days,
                 '재구매의향': '예' if repurchase_bool else '아니오'
             }
-
-            if has_db:
-                save_single_purchase(user_id, item)
-            else:
-                # DB 없을 때 세션 fallback
-                if 'manual_items' not in st.session_state:
-                    st.session_state.manual_items = []
-                item['날짜'] = pd.to_datetime(purchase_date)
-                st.session_state.manual_items.append(item)
-
+            st.session_state.pending_items.append(item)
             st.success(f"✅ '{product_name}' {t('purchase_saved', lang)}")
-            st.balloons()
             st.rerun()
+
+    # 대기 목록 표시
+    if st.session_state.pending_items:
+        st.divider()
+        st.markdown(f"### {t('pending_items', lang)} ({len(st.session_state.pending_items)}{t('pending_count', lang)})")
+
+        pending_df = pd.DataFrame(st.session_state.pending_items)
+        display_pending = pending_df[['날짜', '카테고리', '상품명', '금액']].copy()
+        display_pending['금액'] = display_pending['금액'].apply(lambda x: f"₩{x:,.0f}")
+        st.dataframe(display_pending, use_container_width=True, hide_index=True)
+
+        save_col, clear_col = st.columns(2)
+        with save_col:
+            if st.button(t('btn_save_all', lang), type="primary", use_container_width=True):
+                if has_db:
+                    for item in st.session_state.pending_items:
+                        save_single_purchase(user_id, item)
+                else:
+                    if 'manual_items' not in st.session_state:
+                        st.session_state.manual_items = []
+                    for item in st.session_state.pending_items:
+                        item_copy = item.copy()
+                        item_copy['날짜'] = pd.to_datetime(item_copy['날짜'])
+                        st.session_state.manual_items.append(item_copy)
+
+                count = len(st.session_state.pending_items)
+                st.session_state.pending_items = []
+                st.success(f"✅ {count}{t('all_saved', lang)}")
+                st.balloons()
+                st.rerun()
+
+        with clear_col:
+            if st.button(t('clear_pending', lang), use_container_width=True):
+                st.session_state.pending_items = []
+                st.rerun()
 
     st.divider()
 
