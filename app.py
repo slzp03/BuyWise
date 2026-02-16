@@ -1436,6 +1436,20 @@ def main():
     # 헤더 표시
     display_header()
 
+    # 모바일용 계정 expander (사이드바 접근 어려울 때)
+    with st.expander(f"👤 {user_info['name']} | {t('my_account', lang)}"):
+        exp_col1, exp_col2 = st.columns([3, 1])
+        with exp_col1:
+            st.caption(user_info['email'])
+            if is_subscribed:
+                st.success(t('premium', lang))
+            else:
+                st.info(f"{t('free_plan', lang)}: {remaining}{t('remaining', lang)}")
+        with exp_col2:
+            if st.button(t('logout', lang), key="mobile_logout", use_container_width=True):
+                logout()
+                st.rerun()
+
     # 사이드바에 언어 선택 + 사용자 정보 표시
     with st.sidebar:
         # 언어 선택
