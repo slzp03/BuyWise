@@ -2,7 +2,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Smart Purchase Analyzer';
+  static const String appName = 'BuyWise';
   static const String appVersion = '1.0.0';
 
   // 무료 사용 제한

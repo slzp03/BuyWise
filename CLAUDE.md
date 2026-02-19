@@ -6,7 +6,7 @@
 
 ## 프로젝트 개요
 
-**AI 구매 후회 방지 분석기** (Smart Purchase Analyzer / BuyWise)
+**AI 구매 후회 방지 분석기** (BuyWise)
 
 - 해커톤 제출용 MVP
 - 가계부 기록 / CSV 업로드 → 후회 점수 계산 → AI 심리 분석

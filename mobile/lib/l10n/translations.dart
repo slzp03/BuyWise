@@ -5,7 +5,7 @@ class AppTranslations {
   static const Map<String, Map<String, String>> _translations = {
     'ko': {
       // 앱
-      'app_title': 'Smart Purchase Analyzer',
+      'app_title': 'BuyWise',
       'app_subtitle': '데이터 기반 구매 패턴 분석으로 현명한 소비 습관을 만들어보세요',
 
       // 네비게이션
@@ -125,7 +125,7 @@ class AppTranslations {
 
     'ja': {
       // アプリ
-      'app_title': 'Smart Purchase Analyzer',
+      'app_title': 'BuyWise',
       'app_subtitle': 'データに基づく購買パターン分析で賢い消費習慣を身につけましょう',
 
       // ナビゲーション

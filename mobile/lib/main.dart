@@ -32,7 +32,7 @@ class SmartPurchaseApp extends StatelessWidget {
       child: Consumer<AuthService>(
         builder: (context, auth, _) {
           return MaterialApp(
-            title: 'Smart Purchase Analyzer',
+            title: 'BuyWise',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
@@ -93,7 +93,7 @@ class _SplashScreen extends StatelessWidget {
             Icon(Icons.analytics_outlined, size: 80, color: Color(0xFF6366F1)),
             SizedBox(height: 24),
             Text(
-              'Smart Purchase Analyzer',
+              'BuyWise',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),

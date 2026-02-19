@@ -1,6 +1,6 @@
 # AI 구매 후회 방지 분석기 (BuyWise)
 
-> Smart Purchase Analyzer - AI 기반 소비 패턴 분석 및 후회 방지 서비스
+> BuyWise - AI 기반 소비 패턴 분석 및 후회 방지 서비스
 
 ![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.10+-green)
