@@ -40,7 +40,7 @@ from utils.regret_calculator import (
     get_overall_regret_analysis
 )
 
-# Google OAuth
+# 인증 (Google OAuth + 로컬 ID/PW)
 from utils.auth import (
     get_login_url,
     handle_oauth_callback,
@@ -48,7 +48,9 @@ from utils.auth import (
     increment_usage_count,
     logout,
     save_session,
-    load_session
+    load_session,
+    register_local,
+    login_local
 )
 
 # Supabase DB (선택적)
@@ -271,10 +273,10 @@ def display_analysis_history():
 
             with st.expander(label, expanded=False):
                 if a.get('psychology_analysis'):
-                    st.markdown(a['psychology_analysis'][:300] + "..." if len(a.get('psychology_analysis', '')) > 300 else a.get('psychology_analysis', ''))
+                    st.markdown(a['psychology_analysis'][:300] + "\u2026" if len(a.get('psychology_analysis', '')) > 300 else a.get('psychology_analysis', ''))
                 if a.get('smart_insights'):
                     st.markdown("---")
-                    st.markdown(a['smart_insights'][:300] + "..." if len(a.get('smart_insights', '')) > 300 else a.get('smart_insights', ''))
+                    st.markdown(a['smart_insights'][:300] + "\u2026" if len(a.get('smart_insights', '')) > 300 else a.get('smart_insights', ''))
 
 
 def display_login_screen():
@@ -331,9 +333,73 @@ def display_login_screen():
         st.markdown(t('free_plan_desc', lang))
         st.markdown(t('premium_plan_desc', lang))
 
-        # Google 로그인 버튼 (새 탭에서 열림)
-        login_url = get_login_url()
-        st.link_button(f"🔐 {t('google_login', lang)}", login_url, use_container_width=True, type="primary")
+        # 탭: Google 로그인 / 일반 로그인
+        tab_google, tab_local = st.tabs([f"🔐 {t('tab_google', lang)}", f"👤 {t('tab_local', lang)}"])
+
+        with tab_google:
+            login_url = get_login_url()
+            st.link_button(f"🔐 {t('google_login', lang)}", login_url, use_container_width=True, type="primary")
+
+        with tab_local:
+            # 로그인 폼
+            login_id = st.text_input(
+                t('username_label', lang),
+                placeholder=t('username_placeholder', lang),
+                key='login_username'
+            )
+            login_pw = st.text_input(
+                t('password_label', lang),
+                type='password',
+                placeholder=t('password_placeholder', lang),
+                key='login_password'
+            )
+
+            if st.button(f"🔑 {t('btn_login', lang)}", use_container_width=True, type="primary"):
+                if login_id and login_pw:
+                    success, msg_key, user_info = login_local(login_id, login_pw)
+                    if success:
+                        st.session_state.user_info = user_info
+                        save_session(user_info)
+                        st.success(t(msg_key, lang))
+                        st.rerun()
+                    else:
+                        st.error(t(msg_key, lang))
+
+            st.markdown("---")
+            st.markdown(f"**{t('register_section', lang)}**")
+
+            reg_id = st.text_input(
+                t('username_label', lang),
+                placeholder=t('username_placeholder', lang),
+                key='register_username'
+            )
+            reg_name = st.text_input(
+                t('name_label', lang),
+                key='register_name'
+            )
+            reg_pw = st.text_input(
+                t('password_label', lang),
+                type='password',
+                placeholder=t('password_placeholder', lang),
+                key='register_password'
+            )
+            reg_pw2 = st.text_input(
+                t('password_confirm_label', lang),
+                type='password',
+                key='register_password_confirm'
+            )
+
+            if st.button(f"📝 {t('btn_register', lang)}", use_container_width=True):
+                if reg_pw != reg_pw2:
+                    st.error(t('password_mismatch', lang))
+                elif not reg_name:
+                    st.error(t('name_label', lang))
+                else:
+                    success, msg_key, user_info = register_local(reg_id, reg_pw, reg_name)
+                    if success:
+                        st.success(t(msg_key, lang))
+                    else:
+                        st.error(t(msg_key, lang))
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))

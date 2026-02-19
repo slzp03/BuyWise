@@ -181,6 +181,55 @@ def is_admin(user_id: str) -> bool:
         return False
 
 
+def create_local_user(username: str, password_hash: str, name: str) -> Optional[Dict]:
+    """
+    로컬 회원가입 (ID/PW)
+
+    Args:
+        username: 사용자 아이디
+        password_hash: bcrypt 해시된 비밀번호
+        name: 표시 이름
+
+    Returns:
+        DB user row dict 또는 None
+    """
+    client = get_supabase_client()
+    if not client:
+        return None
+
+    try:
+        new_user = {
+            'email': f'{username}@local',
+            'username': username,
+            'password_hash': password_hash,
+            'auth_method': 'local',
+            'name': name,
+            'picture_url': '',
+            'usage_count': 0,
+            'is_subscribed': False,
+            'language': 'ko'
+        }
+        result = client.table('users').insert(new_user).execute()
+        if result.data:
+            return result.data[0]
+        return None
+    except Exception:
+        return None
+
+
+def get_user_by_username(username: str) -> Optional[Dict]:
+    """username으로 사용자 조회 (로컬 로그인용)"""
+    client = get_supabase_client()
+    if not client:
+        return None
+
+    try:
+        result = client.table('users').select('*').eq('username', username).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
 def update_language(user_id: str, lang: str) -> None:
     """언어 설정 저장"""
     client = get_supabase_client()

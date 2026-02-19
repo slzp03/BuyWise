@@ -57,6 +57,7 @@
     padding: 1.5rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    /* WIG: explicit properties instead of transition: all */
 }
 
 .metric-card:hover {
@@ -101,7 +102,7 @@
     border-radius: 8px;
     font-weight: 600;
     padding: 0.6rem 1.5rem;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     border: none;
 }
 
@@ -122,6 +123,7 @@
     padding: 2rem;
     border: 2px dashed #e5e7eb;
     transition: border-color 0.2s ease;
+    /* WIG: explicit property */
 }
 
 [data-testid="stFileUploader"]:hover {
@@ -383,4 +385,107 @@ tbody tr:hover {
     color: #9ca3af;
     font-size: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+/* ===================================================================
+   17. Web Interface Guidelines - Accessibility & Focus
+   =================================================================== */
+
+/* WIG: color-scheme for proper scrollbar/input theming */
+:root {
+    color-scheme: light;
+}
+
+/* WIG: focus-visible on interactive elements */
+.stButton > button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[data-testid="stFileUploader"]:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+/* WIG: never outline-none without replacement */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ===================================================================
+   18. Web Interface Guidelines - Touch & Interaction
+   =================================================================== */
+
+/* WIG: touch-action manipulation for faster taps on mobile */
+.stButton > button,
+a,
+input,
+select,
+textarea,
+[data-testid="stFileUploader"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(99, 102, 241, 0.1);
+}
+
+/* ===================================================================
+   19. Web Interface Guidelines - Typography
+   =================================================================== */
+
+/* WIG: text-wrap balance for headings (prevents orphans/widows) */
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+}
+
+/* WIG: tabular-nums for metric/number displays */
+[data-testid="stMetricValue"],
+[data-testid="stDataFrame"] td {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===================================================================
+   20. Web Interface Guidelines - Reduced Motion
+   =================================================================== */
+
+/* WIG: honor prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .metric-card:hover {
+        transform: none;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        transform: none;
+    }
+
+    .support-section a img:hover {
+        transform: none;
+    }
+
+    .fade-in {
+        animation: none;
+    }
+}
+
+/* ===================================================================
+   21. Web Interface Guidelines - Content Overflow
+   =================================================================== */
+
+/* WIG: handle long content / text truncation */
+[data-testid="stMetricLabel"] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* WIG: flex children need min-w-0 for truncation */
+[data-testid="stHorizontalBlock"] > div {
+    min-width: 0;
 }

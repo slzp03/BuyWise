@@ -1,13 +1,17 @@
 """
-Google OAuth 2.0 인증 및 사용자 관리 모듈
+인증 및 사용자 관리 모듈
+- Google OAuth 2.0 + 로컬 ID/PW 회원가입/로그인
 - Supabase DB 우선 사용, 연결 실패 시 로컬 JSON fallback
 """
 
 import os
+import re
 import json
 import streamlit as st
 from pathlib import Path
 from typing import Optional, Dict, Tuple
+
+import bcrypt
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Streamlit Cloud 프록시 대응
 
@@ -19,6 +23,7 @@ from google.auth.transport import requests
 try:
     from utils.database import (
         is_db_available, get_or_create_user, get_user_by_email,
+        get_user_by_username, create_local_user,
         get_usage_count, increment_usage, update_language
     )
     DB_MODULE_AVAILABLE = True
@@ -248,6 +253,149 @@ def increment_usage_count(user_email: str) -> None:
         if not users[user_email].get('is_subscribed', False):
             users[user_email]['usage_count'] += 1
             _save_user_data_json(users)
+
+
+# ============================================
+# 로컬 ID/PW 회원가입 & 로그인
+# ============================================
+
+USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_]+$')
+
+
+def validate_username(username: str) -> Optional[str]:
+    """
+    아이디 유효성 검사
+
+    Returns:
+        에러 메시지 또는 None (유효)
+    """
+    if len(username) < 4:
+        return 'username_too_short'
+    if len(username) > 50:
+        return 'username_too_long'
+    if not USERNAME_PATTERN.match(username):
+        return 'username_invalid'
+    return None
+
+
+def validate_password(password: str) -> Optional[str]:
+    """
+    비밀번호 유효성 검사
+
+    Returns:
+        에러 메시지 또는 None (유효)
+    """
+    if len(password) < 6:
+        return 'password_too_short'
+    return None
+
+
+def register_local(username: str, password: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
+    """
+    로컬 회원가입
+
+    Returns:
+        (성공 여부, 메시지 키, user_info dict 또는 None)
+    """
+    # 유효성 검사
+    err = validate_username(username)
+    if err:
+        return False, err, None
+
+    err = validate_password(password)
+    if err:
+        return False, err, None
+
+    # 비밀번호 해시
+    pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    # DB 사용 가능 시
+    if _use_db():
+        existing = get_user_by_username(username)
+        if existing:
+            return False, 'username_exists', None
+
+        db_user = create_local_user(username, pw_hash, name)
+        if db_user:
+            user_info = {
+                'email': f'{username}@local',
+                'name': name,
+                'picture': '',
+                'sub': f'local-{username}',
+                'db_user_id': db_user['id']
+            }
+            return True, 'register_success', user_info
+        return False, 'register_fail', None
+
+    # JSON fallback
+    users = _load_user_data_json()
+    local_email = f'{username}@local'
+
+    if local_email in users and users[local_email].get('password_hash'):
+        return False, 'username_exists', None
+
+    users[local_email] = {
+        'usage_count': 0,
+        'is_subscribed': False,
+        'subscription_date': None,
+        'password_hash': pw_hash,
+        'name': name,
+        'auth_method': 'local'
+    }
+    _save_user_data_json(users)
+
+    user_info = {
+        'email': local_email,
+        'name': name,
+        'picture': '',
+        'sub': f'local-{username}'
+    }
+    return True, 'register_success', user_info
+
+
+def login_local(username: str, password: str) -> Tuple[bool, str, Optional[Dict]]:
+    """
+    로컬 로그인
+
+    Returns:
+        (성공 여부, 메시지 키, user_info dict 또는 None)
+    """
+    # DB 사용 가능 시
+    if _use_db():
+        db_user = get_user_by_username(username)
+        if not db_user or not db_user.get('password_hash'):
+            return False, 'login_fail', None
+
+        if not bcrypt.checkpw(password.encode('utf-8'), db_user['password_hash'].encode('utf-8')):
+            return False, 'login_fail', None
+
+        user_info = {
+            'email': db_user['email'],
+            'name': db_user.get('name', username),
+            'picture': db_user.get('picture_url', ''),
+            'sub': f'local-{username}',
+            'db_user_id': db_user['id']
+        }
+        return True, 'login_success', user_info
+
+    # JSON fallback
+    users = _load_user_data_json()
+    local_email = f'{username}@local'
+
+    if local_email not in users or not users[local_email].get('password_hash'):
+        return False, 'login_fail', None
+
+    stored_hash = users[local_email]['password_hash']
+    if not bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
+        return False, 'login_fail', None
+
+    user_info = {
+        'email': local_email,
+        'name': users[local_email].get('name', username),
+        'picture': '',
+        'sub': f'local-{username}'
+    }
+    return True, 'login_success', user_info
 
 
 def logout() -> None:
