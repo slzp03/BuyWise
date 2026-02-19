@@ -365,41 +365,39 @@ def display_login_screen():
                     else:
                         st.error(t(msg_key, lang))
 
-            st.markdown("---")
-            st.markdown(f"**{t('register_section', lang)}**")
+            with st.expander(f"📝 {t('register_section', lang)}", expanded=False):
+                reg_id = st.text_input(
+                    t('username_label', lang),
+                    placeholder=t('username_placeholder', lang),
+                    key='register_username'
+                )
+                reg_name = st.text_input(
+                    t('name_label', lang),
+                    key='register_name'
+                )
+                reg_pw = st.text_input(
+                    t('password_label', lang),
+                    type='password',
+                    placeholder=t('password_placeholder', lang),
+                    key='register_password'
+                )
+                reg_pw2 = st.text_input(
+                    t('password_confirm_label', lang),
+                    type='password',
+                    key='register_password_confirm'
+                )
 
-            reg_id = st.text_input(
-                t('username_label', lang),
-                placeholder=t('username_placeholder', lang),
-                key='register_username'
-            )
-            reg_name = st.text_input(
-                t('name_label', lang),
-                key='register_name'
-            )
-            reg_pw = st.text_input(
-                t('password_label', lang),
-                type='password',
-                placeholder=t('password_placeholder', lang),
-                key='register_password'
-            )
-            reg_pw2 = st.text_input(
-                t('password_confirm_label', lang),
-                type='password',
-                key='register_password_confirm'
-            )
-
-            if st.button(f"📝 {t('btn_register', lang)}", use_container_width=True):
-                if reg_pw != reg_pw2:
-                    st.error(t('password_mismatch', lang))
-                elif not reg_name:
-                    st.error(t('name_label', lang))
-                else:
-                    success, msg_key, user_info = register_local(reg_id, reg_pw, reg_name)
-                    if success:
-                        st.success(t(msg_key, lang))
+                if st.button(f"📝 {t('btn_register', lang)}", use_container_width=True):
+                    if reg_pw != reg_pw2:
+                        st.error(t('password_mismatch', lang))
+                    elif not reg_name:
+                        st.error(t('name_label', lang))
                     else:
-                        st.error(t(msg_key, lang))
+                        success, msg_key, user_info = register_local(reg_id, reg_pw, reg_name)
+                        if success:
+                            st.success(t(msg_key, lang))
+                        else:
+                            st.error(t(msg_key, lang))
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.caption(t('terms_agree', lang))
