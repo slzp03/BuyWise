@@ -206,7 +206,7 @@ def create_local_user(username: str, password_hash: str, name: str) -> Optional[
             'name': name,
             'picture_url': '',
             'usage_count': 0,
-            'is_subscribed': False,
+            'is_subscribed': True,
             'language': 'ko'
         }
         result = client.table('users').insert(new_user).execute()

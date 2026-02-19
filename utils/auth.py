@@ -336,7 +336,7 @@ def register_local(username: str, password: str, name: str) -> Tuple[bool, str, 
 
     users[local_email] = {
         'usage_count': 0,
-        'is_subscribed': False,
+        'is_subscribed': True,
         'subscription_date': None,
         'password_hash': pw_hash,
         'name': name,

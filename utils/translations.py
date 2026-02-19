@@ -141,6 +141,8 @@ TRANSLATIONS = {
         'good_purchase_ratio': '합리적 구매 비율',
         'top_regret_5': '후회 가능성이 높은 구매 TOP 5',
         'top_good_5': '만족도가 높은 구매 TOP 5',
+        'top_low_satisfaction_5': '만족도가 낮은 구매 TOP 5',
+        'col_regret_score': '후회점수',
 
         # 완료
         'analysis_complete': '**분석 완료!**\n- 모든 분석 결과를 확인하셨나요?\n- 정기적으로 구매 데이터를 업데이트하면 소비 패턴 변화를 추적할 수 있습니다!',
@@ -247,6 +249,11 @@ TRANSLATIONS = {
         'all_deleted': '모든 항목이 삭제되었습니다.',
 
         # 카테고리 테이블
+        'col_date': '날짜',
+        'col_product': '상품명',
+        'col_amount': '금액',
+        'col_necessity': '필요도',
+        'col_usage': '사용빈도',
         'col_category': '카테고리',
         'col_total_amount': '총 금액',
         'col_avg_amount': '평균 금액',
@@ -469,6 +476,8 @@ API 키가 없어도 기본 분석은 계속 이용 가능합니다!""",
         'good_purchase_ratio': '合理的購入割合',
         'top_regret_5': '後悔の可能性が高い購入 TOP 5',
         'top_good_5': '満足度が高い購入 TOP 5',
+        'top_low_satisfaction_5': '満足度が低い購入 TOP 5',
+        'col_regret_score': '後悔スコア',
 
         # 完了
         'analysis_complete': '**分析完了！**\n- すべての分析結果を確認しましたか？\n- 定期的に購入データを更新すると、消費パターンの変化を追跡できます！',
@@ -575,6 +584,11 @@ API 키가 없어도 기본 분석은 계속 이용 가능합니다!""",
         'all_deleted': 'すべてのアイテムが削除されました。',
 
         # カテゴリテーブル
+        'col_date': '日付',
+        'col_product': '商品名',
+        'col_amount': '金額',
+        'col_necessity': '必要度',
+        'col_usage': '使用頻度',
         'col_category': 'カテゴリ',
         'col_total_amount': '総金額',
         'col_avg_amount': '平均金額',
@@ -705,3 +719,38 @@ def t(key: str, lang: str = 'ko') -> str:
         # 한국어 폴백
         result = TRANSLATIONS['ko'].get(key, key)
     return result
+
+
+# ============================================
+# 통화 변환 유틸리티 (KRW ↔ JPY)
+# DB는 항상 KRW 기준 저장, 표시/입력 시 변환
+# ============================================
+
+KRW_PER_JPY = 10  # 100엔 = 1,000원
+
+
+def currency_symbol(lang: str) -> str:
+    """통화 기호 반환"""
+    return '¥' if lang == 'ja' else '₩'
+
+
+def format_currency(amount_krw: float, lang: str) -> str:
+    """KRW 기준 금액을 해당 언어의 통화로 포맷팅"""
+    if lang == 'ja':
+        jpy = amount_krw / KRW_PER_JPY
+        return f"¥{jpy:,.0f}"
+    return f"₩{amount_krw:,.0f}"
+
+
+def to_krw(amount: float, lang: str) -> float:
+    """사용자 입력 금액 → KRW 변환 (저장용)"""
+    if lang == 'ja':
+        return amount * KRW_PER_JPY
+    return amount
+
+
+def from_krw(amount_krw: float, lang: str) -> float:
+    """KRW → 사용자 표시 금액 변환"""
+    if lang == 'ja':
+        return amount_krw / KRW_PER_JPY
+    return amount_krw

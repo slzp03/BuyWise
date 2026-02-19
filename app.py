@@ -27,7 +27,7 @@ from utils.csv_processor import (
     calculate_necessity_from_input,
     create_dataframe_from_manual_input
 )
-from utils.translations import t, TRANSLATIONS
+from utils.translations import t, TRANSLATIONS, format_currency, to_krw, from_krw, currency_symbol
 from utils.visualizer import (
     create_category_chart,
     create_amount_chart,
@@ -499,10 +499,11 @@ def expense_tracker():
             help=t('product_help', lang)
         )
 
+        amount_step = 100 if lang == 'ja' else 1000
         amount = st.number_input(
             t('amount', lang),
             min_value=0,
-            step=1000,
+            step=amount_step,
             value=0,
             help=t('amount_help', lang)
         )
@@ -586,7 +587,7 @@ def expense_tracker():
                 '날짜': str(purchase_date),
                 '카테고리': category,
                 '상품명': product_name,
-                '금액': amount,
+                '금액': to_krw(amount, lang),
                 '필요도': necessity,
                 '사용빈도': usage_freq,
                 '고민기간': thinking_days,
@@ -603,7 +604,7 @@ def expense_tracker():
 
         pending_df = pd.DataFrame(st.session_state.pending_items)
         display_pending = pending_df[['날짜', '카테고리', '상품명', '금액']].copy()
-        display_pending['금액'] = display_pending['금액'].apply(lambda x: f"₩{x:,.0f}")
+        display_pending['금액'] = display_pending['금액'].apply(lambda x: format_currency(x, lang))
         st.dataframe(display_pending, use_container_width=True, hide_index=True)
 
         save_col, clear_col = st.columns(2)
@@ -673,7 +674,7 @@ def expense_tracker():
         display_cols = ['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']
         display_df = purchases_df[[c for c in display_cols if c in purchases_df.columns]].copy()
         display_df['날짜'] = display_df['날짜'].dt.strftime('%Y-%m-%d')
-        display_df['금액'] = display_df['금액'].apply(lambda x: f"₩{x:,.0f}")
+        display_df['금액'] = display_df['금액'].apply(lambda x: format_currency(x, lang))
 
         # 삭제용 체크박스 (DB 모드에서만)
         if has_db and '_id' in purchases_df.columns:
@@ -742,7 +743,7 @@ def display_raw_data(df: pd.DataFrame):
     display_df['날짜'] = display_df['날짜'].dt.strftime('%Y-%m-%d')
 
     # 금액 포맷팅 (천 단위 쉼표)
-    display_df['금액'] = display_df['금액'].apply(lambda x: f"₩{x:,.0f}")
+    display_df['금액'] = display_df['금액'].apply(lambda x: format_currency(x, lang))
 
     # 데이터 테이블 표시
     st.dataframe(
@@ -760,11 +761,11 @@ def display_raw_data(df: pd.DataFrame):
 
     with col2:
         total_amount = df['금액'].sum()
-        st.metric(t('total_amount', lang), f"₩{total_amount:,.0f}")
+        st.metric(t('total_amount', lang), format_currency(total_amount, lang))
 
     with col3:
         avg_amount = df['금액'].mean()
-        st.metric(t('avg_amount', lang), f"₩{avg_amount:,.0f}")
+        st.metric(t('avg_amount', lang), format_currency(avg_amount, lang))
 
     with col4:
         categories = df['카테고리'].nunique()
@@ -791,7 +792,7 @@ def display_category_analysis(df: pd.DataFrame):
 
     # 차트 표시
     chart_type_map = {t('pie_chart', lang): "pie", t('bar_chart', lang): "bar"}
-    fig = create_category_chart(category_summary, chart_type_map[chart_type])
+    fig = create_category_chart(category_summary, chart_type_map[chart_type], lang)
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -800,8 +801,8 @@ def display_category_analysis(df: pd.DataFrame):
 
     # 테이블 포맷팅
     display_summary = category_summary.copy()
-    display_summary['총_금액'] = display_summary['총_금액'].apply(lambda x: f"₩{x:,.0f}")
-    display_summary['평균_금액'] = display_summary['평균_금액'].apply(lambda x: f"₩{x:,.0f}")
+    display_summary['총_금액'] = display_summary['총_금액'].apply(lambda x: format_currency(x, lang))
+    display_summary['평균_금액'] = display_summary['평균_금액'].apply(lambda x: format_currency(x, lang))
     display_summary.columns = [t('col_category', lang), t('col_total_amount', lang), t('col_avg_amount', lang), t('col_count', lang), t('col_avg_necessity', lang), t('col_avg_usage', lang)]
 
     st.dataframe(
@@ -821,12 +822,12 @@ def display_additional_charts(df: pd.DataFrame):
 
     with col1:
         st.subheader(t('amount_dist', lang))
-        fig_amount = create_amount_chart(df)
+        fig_amount = create_amount_chart(df, lang)
         st.plotly_chart(fig_amount, use_container_width=True)
 
     with col2:
         st.subheader(t('monthly_trend', lang))
-        fig_timeline = create_timeline_chart(df)
+        fig_timeline = create_timeline_chart(df, lang)
         st.plotly_chart(fig_timeline, use_container_width=True)
 
     # 필요도 vs 사용빈도 산점도
@@ -906,7 +907,7 @@ def display_regret_score_analysis(df: pd.DataFrame):
     with col2:
         st.metric(
             t('regret_amount', lang),
-            f"₩{analysis['regret_amount']:,}",
+            format_currency(analysis['regret_amount'], lang),
             delta=f"{analysis['regret_amount_ratio']:.1f}%",
             delta_color="inverse"
         )
@@ -980,7 +981,7 @@ def display_regret_score_analysis(df: pd.DataFrame):
     ].copy()
 
     top_regret_df['날짜'] = top_regret_df['날짜'].dt.strftime('%Y-%m-%d')
-    top_regret_df['금액'] = top_regret_df['금액'].apply(lambda x: f"₩{x:,.0f}")
+    top_regret_df['금액'] = top_regret_df['금액'].apply(lambda x: format_currency(x, lang))
     top_regret_df['후회점수'] = top_regret_df['후회점수'].apply(lambda x: f"{x:.1f}")
 
     # 후회 점수에 따라 배경색 적용
@@ -1009,7 +1010,7 @@ def display_regret_score_analysis(df: pd.DataFrame):
     ].copy()
 
     top_satisfied_df['날짜'] = top_satisfied_df['날짜'].dt.strftime('%Y-%m-%d')
-    top_satisfied_df['금액'] = top_satisfied_df['금액'].apply(lambda x: f"₩{x:,.0f}")
+    top_satisfied_df['금액'] = top_satisfied_df['금액'].apply(lambda x: format_currency(x, lang))
     top_satisfied_df['후회점수'] = top_satisfied_df['후회점수'].apply(lambda x: f"{x:.1f}")
 
     st.dataframe(
@@ -1242,7 +1243,8 @@ def display_ai_analysis(df: pd.DataFrame):
                     prompt_cost = total_prompt * 0.15 / 1_000_000
                     completion_cost = total_completion * 0.60 / 1_000_000
                     total_cost = prompt_cost + completion_cost
-                    st.info(f"{t('cost_estimate', lang)}: ${total_cost:.6f} (≈ ₩{total_cost * 1300:.2f})")
+                    krw_cost = total_cost * 1300
+                    st.info(f"{t('cost_estimate', lang)}: ${total_cost:.6f} (≈ {format_currency(krw_cost, lang)})")
             else:
                 error_msg = feedback_result.get('error', '') or insights_result.get('error', '')
                 st.error(f"{error_msg}")
@@ -1332,8 +1334,8 @@ def display_savings_calculator(df):
         annual_saving = monthly_avg * (reduction / 100) * 12
         savings_data.append({
             t('col_category', lang): cat,
-            t('col_monthly_avg', lang): f"₩{monthly_avg:,.0f}",
-            f'{reduction}{t("col_annual_saving", lang)}': f"₩{annual_saving:,.0f}"
+            t('col_monthly_avg', lang): format_currency(monthly_avg, lang),
+            f'{reduction}{t("col_annual_saving", lang)}': format_currency(annual_saving, lang)
         })
 
     st.dataframe(pd.DataFrame(savings_data), use_container_width=True, hide_index=True)
@@ -1342,7 +1344,7 @@ def display_savings_calculator(df):
         val * (reduction / 100) * 12
         for val in category_monthly
     )
-    st.metric(t('annual_saving', lang), f"₩{total_annual_saving:,.0f}")
+    st.metric(t('annual_saving', lang), format_currency(total_annual_saving, lang))
 
 
 
@@ -1387,13 +1389,17 @@ def display_insights(df: pd.DataFrame):
 
     stats = get_basic_stats(df)
 
-    # 후회 구매 감지 (필요도 > 사용빈도 + 1)
-    regret_purchases = df[df['필요도'] - df['사용빈도'] >= 2]
+    # 후회점수 컬럼 기반으로 감지 (후회점수 >= 51 = 아쉬움 이상)
+    # 후회점수가 없으면 필요도-사용빈도 gap으로 fallback
+    if '후회점수' in df.columns:
+        regret_purchases = df[df['후회점수'] >= 51]
+        good_purchases   = df[df['후회점수'] <= 35]
+    else:
+        regret_purchases = df[df['필요도'] - df['사용빈도'] >= 2]
+        good_purchases   = df[df['사용빈도'] >= df['필요도']]
+
     regret_ratio = (len(regret_purchases) / len(df)) * 100 if len(df) > 0 else 0
     regret_amount = regret_purchases['금액'].sum() if len(regret_purchases) > 0 else 0
-
-    # 좋은 구매 감지 (사용빈도 >= 필요도)
-    good_purchases = df[df['사용빈도'] >= df['필요도']]
     good_ratio = (len(good_purchases) / len(df)) * 100 if len(df) > 0 else 0
 
     # 메트릭 표시
@@ -1403,15 +1409,17 @@ def display_insights(df: pd.DataFrame):
         st.metric(
             t('regret_purchase_ratio', lang),
             f"{regret_ratio:.1f}%",
-            delta=f"{len(regret_purchases)}",
+            delta=f"{len(regret_purchases)}건",
             delta_color="inverse"
         )
 
     with col2:
+        total = stats['총_지출금액']
+        ratio_str = f"{(regret_amount / total * 100):.1f}%" if total > 0 else "0.0%"
         st.metric(
             t('regret_purchase_amount', lang),
-            f"₩{regret_amount:,.0f}",
-            delta=f"{(regret_amount/stats['총_지출금액']*100):.1f}%",
+            format_currency(regret_amount, lang),
+            delta=ratio_str,
             delta_color="inverse"
         )
 
@@ -1419,45 +1427,58 @@ def display_insights(df: pd.DataFrame):
         st.metric(
             t('good_purchase_ratio', lang),
             f"{good_ratio:.1f}%",
-            delta=f"{len(good_purchases)}",
+            delta=f"{len(good_purchases)}건",
             delta_color="normal"
         )
 
-    # 상위 후회 구매 표시
+    # 만족도가 낮은 구매 TOP 5 (후회점수 높은 순)
+    st.subheader(t('top_low_satisfaction_5', lang))
+    if '후회점수' in df.columns and len(df) > 0:
+        low_sat = df.nlargest(5, '후회점수').copy()
+        low_sat['날짜'] = low_sat['날짜'].dt.strftime('%Y-%m-%d')
+        low_sat['금액'] = low_sat['금액'].apply(lambda x: format_currency(x, lang))
+        low_sat['후회점수'] = low_sat['후회점수'].apply(lambda x: f"{x:.0f}점")
+        display_low = low_sat[['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도', '후회점수']].copy()
+        display_low.columns = [
+            t('col_date', lang), t('col_category', lang), t('col_product', lang),
+            t('col_amount', lang), t('col_necessity', lang), t('col_usage', lang),
+            t('col_regret_score', lang)
+        ]
+        st.dataframe(display_low, use_container_width=True, hide_index=True)
+    else:
+        st.info(t('no_data', lang))
+
+    # 상위 후회 구매 TOP 5
     if len(regret_purchases) > 0:
         st.subheader(t('top_regret_5', lang))
+        if '후회점수' in regret_purchases.columns:
+            regret_top5 = regret_purchases.nlargest(5, '후회점수').copy()
+        else:
+            regret_top5 = regret_purchases.head(5).copy()
+        regret_top5['날짜'] = regret_top5['날짜'].dt.strftime('%Y-%m-%d')
+        regret_top5['금액'] = regret_top5['금액'].apply(lambda x: format_currency(x, lang))
+        cols = ['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']
+        if '후회점수' in regret_top5.columns:
+            regret_top5['후회점수'] = regret_top5['후회점수'].apply(lambda x: f"{x:.0f}점")
+            cols.append('후회점수')
+        display_regret = regret_top5[cols].copy()
+        st.dataframe(display_regret, use_container_width=True, hide_index=True)
 
-        regret_purchases_sorted = regret_purchases.copy()
-        regret_purchases_sorted['후회도'] = (regret_purchases_sorted['필요도'] - regret_purchases_sorted['사용빈도']) * regret_purchases_sorted['금액'] / 1000
-        regret_purchases_sorted = regret_purchases_sorted.nlargest(5, '후회도')
-
-        display_regret = regret_purchases_sorted[['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']].copy()
-        display_regret['날짜'] = display_regret['날짜'].dt.strftime('%Y-%m-%d')
-        display_regret['금액'] = display_regret['금액'].apply(lambda x: f"₩{x:,.0f}")
-
-        st.dataframe(
-            display_regret,
-            use_container_width=True,
-            hide_index=True
-        )
-
-    # 상위 좋은 구매 표시
+    # 만족도 높은 구매 TOP 5
     if len(good_purchases) > 0:
         st.subheader(t('top_good_5', lang))
-
-        good_purchases_sorted = good_purchases.copy()
-        good_purchases_sorted['만족도'] = (good_purchases_sorted['사용빈도'] - good_purchases_sorted['필요도'] + 5) * good_purchases_sorted['사용빈도']
-        good_purchases_sorted = good_purchases_sorted.nlargest(5, '만족도')
-
-        display_good = good_purchases_sorted[['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']].copy()
-        display_good['날짜'] = display_good['날짜'].dt.strftime('%Y-%m-%d')
-        display_good['금액'] = display_good['금액'].apply(lambda x: f"₩{x:,.0f}")
-
-        st.dataframe(
-            display_good,
-            use_container_width=True,
-            hide_index=True
-        )
+        if '후회점수' in good_purchases.columns:
+            good_top5 = good_purchases.nsmallest(5, '후회점수').copy()
+        else:
+            good_top5 = good_purchases.head(5).copy()
+        good_top5['날짜'] = good_top5['날짜'].dt.strftime('%Y-%m-%d')
+        good_top5['금액'] = good_top5['금액'].apply(lambda x: format_currency(x, lang))
+        cols = ['날짜', '카테고리', '상품명', '금액', '필요도', '사용빈도']
+        if '후회점수' in good_top5.columns:
+            good_top5['후회점수'] = good_top5['후회점수'].apply(lambda x: f"{x:.0f}점")
+            cols.append('후회점수')
+        display_good = good_top5[cols].copy()
+        st.dataframe(display_good, use_container_width=True, hide_index=True)
 
 
 def main():

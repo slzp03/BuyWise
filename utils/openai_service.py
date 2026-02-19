@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
+from utils.translations import format_currency, from_krw
 
 # 환경 변수 로드
 load_dotenv()
@@ -66,10 +67,12 @@ class OpenAIService:
         """
 
         # 카테고리별 정보 포맷팅
+        count_unit = '件' if language == 'ja' else '건'
+        score_label = '後悔スコア' if language == 'ja' else '후회점수'
         category_info = ""
         if category_breakdown:
             category_info = "\n".join([
-                f"  - {cat}: {info['count']}건, 총 {info['amount']:,}원"
+                f"  - {cat}: {info['count']}{count_unit}, 総 {format_currency(info['amount'], language)}"
                 for cat, info in list(category_breakdown.items())[:5]
             ])
 
@@ -77,7 +80,7 @@ class OpenAIService:
         regret_items_info = ""
         if top_regret_items:
             regret_items_info = "\n".join([
-                f"  {i+1}. {item['category']} - {item['product']} ({item['amount']:,}원, 후회점수: {item['score']:.1f})"
+                f"  {i+1}. {item['category']} - {item['product']} ({format_currency(item['amount'], language)}, {score_label}: {item['score']:.1f})"
                 for i, item in enumerate(top_regret_items[:5])
             ])
 
@@ -89,7 +92,7 @@ class OpenAIService:
 ## 전체 개요
 - **후회 점수**: {overall_score:.1f}/100
 - **총 구매 건수**: {total_purchases}건
-- **총 지출 금액**: ₩{total_amount:,.0f}
+- **총 지출 금액**: {format_currency(total_amount, language)}
 - **후회 구매 비율**: {regret_ratio:.1f}%
 - **주요 후회 원인**: {main_cause}
 
@@ -261,20 +264,40 @@ class OpenAIService:
         """스마트 인사이트 프롬프트 생성"""
 
         # 분석 대상 항목 포맷
+        count_unit = '件' if language == 'ja' else '건'
+        score_label = '後悔スコア' if language == 'ja' else '후회점수'
+        necessity_label = '必要度' if language == 'ja' else '필요도'
+        usage_label = '使用頻度' if language == 'ja' else '사용빈도'
         items_text = ""
         for i, item in enumerate(target_items, 1):
             items_text += (
                 f"{i}. [{item['category']}] {item['product']} "
-                f"- ₩{item['amount']:,} "
-                f"(후회점수: {item['score']:.0f}, "
-                f"필요도: {item['necessity']}, 사용빈도: {item['usage']})\n"
+                f"- {format_currency(item['amount'], language)} "
+                f"({score_label}: {item['score']:.0f}, "
+                f"{necessity_label}: {item['necessity']}, {usage_label}: {item['usage']})\n"
             )
 
         # 카테고리별 지출 포맷
         category_text = ""
         for cat, amount in category_spending.items():
             count = category_breakdown.get(cat, {}).get('count', 0)
-            category_text += f"- {cat}: ₩{amount:,.0f} ({count}건)\n"
+            category_text += f"- {cat}: {format_currency(amount, language)} ({count}{count_unit})\n"
+
+        from utils.translations import currency_symbol
+        sym = currency_symbol(language)
+        if language == 'ja':
+            shop_link_rule = "Amazon.co.jp 検索リンクを使用してください: https://www.amazon.co.jp/s?k=検索語"
+            shop_example1 = f"1. **ソニー WH-1000XM5** (予想 {sym}35,000): 既存イヤホンより活用度が高い\n   → [Amazonで見る](https://www.amazon.co.jp/s?k=ソニー+WH-1000XM5)"
+            shop_example2 = f"2. **Xiaomi スマートバンド8** (予想 {sym}4,500): 安くて毎日使える\n   → [Amazonで見る](https://www.amazon.co.jp/s?k=Xiaomi+スマートバンド8)"
+            save_example1 = f"1. **デリバリーアプリ削除チャレンジ**: 週3回を1回に減らす → 予想月節約 {sym}8,000"
+            save_example2 = f"2. **衝動買い24時間ルール**: 5,000円以上の購入は24時間待つ → 予想月節約 {sym}5,000"
+            lang_guide = "- 日本語で回答してください。~です、~ます体を使ってください。\n- " + shop_link_rule
+        else:
+            shop_example1 = f"1. **소니 WH-1000XM5 헤드폰** (예상 {sym}350,000): 기존 이어폰 대비 활용도 높음\n   → [쿠팡에서 보기](https://www.coupang.com/np/search?q=소니+WH-1000XM5)"
+            shop_example2 = f"2. **샤오미 미밴드 8** (예상 {sym}45,000): 저렴하면서 매일 착용 가능\n   → [쿠팡에서 보기](https://www.coupang.com/np/search?q=샤오미+미밴드8)"
+            save_example1 = f"1. **배달 앱 삭제 챌린지**: 주 3회 배달을 1회로 줄이고 간단한 자취 요리로 대체 → 예상 월 절약 {sym}80,000"
+            save_example2 = f"2. **충동구매 24시간 룰**: 5만원 이상 구매 시 24시간 대기 후 결정 → 예상 월 절약 {sym}50,000"
+            lang_guide = "- 한국어로 작성"
 
         prompt = f"""당신은 소비 데이터 분석 전문가입니다. 사용자의 구매 데이터를 기반으로 스마트 인사이트를 생성합니다.
 
@@ -282,8 +305,8 @@ class OpenAIService:
 
 ## 전체 개요
 - 후회 점수: {overall_score:.1f}/100
-- 총 구매 건수: {total_purchases}건
-- 총 지출 금액: ₩{total_amount:,.0f}
+- 총 구매 건수: {total_purchases}{count_unit}
+- 총 지출 금액: {format_currency(total_amount, language)}
 
 ## 분석 대상 구매 항목
 {items_text}
@@ -297,7 +320,7 @@ class OpenAIService:
 
 ## 🏷️ 소비패턴 분류
 각 항목의 소비 심리를 분류합니다.
-- **[상품명]** (₩금액): [패턴 유형] - [한줄 설명]
+- **[상품명]** ({sym}금액): [패턴 유형] - [한줄 설명]
 
 패턴 유형 예시: 스트레스성 소비, 계획된 필수 소비, 충동적 보상 소비, 습관적 반복 소비, 사회적 압력 소비, 합리적 투자 소비
 
@@ -309,42 +332,37 @@ class OpenAIService:
 
 ## 💰 장기 저축 효과
 카테고리별로 30% 지출 절감 시 연간 저축 효과를 제시합니다.
-- **[카테고리]**: 월 평균 ₩XX → 30% 절감 시 연간 약 ₩XXX 저축 가능 + [한줄 코멘트]
+- **[카테고리]**: 월 평균 {sym}XX → 30% 절감 시 연간 약 {sym}XXX 저축 가능 + [한줄 코멘트]
 
 ## 🛒 추천 구매목록 TOP 5
 소비 패턴과 실제 니즈를 분석하여 가치 있는 구매를 추천합니다.
 반드시 실제 존재하는 브랜드와 모델명을 포함한 구체적인 상품을 추천하세요.
 
 정확히 아래 형식으로 작성하세요 (줄바꿈 포함):
-1. **[브랜드 + 구체적 상품명]** (예상 ₩가격): [추천 이유]
-   → [쿠팡에서 보기](https://www.coupang.com/np/search?q=브랜드+상품명)
+1. **[브랜드 + 구체적 상품명]** (예상 {sym}가격): [추천 이유]
 
 예시:
-1. **소니 WH-1000XM5 헤드폰** (예상 ₩350,000): 기존 이어폰 대비 활용도 높음
-   → [쿠팡에서 보기](https://www.coupang.com/np/search?q=소니+WH-1000XM5)
-2. **샤오미 미밴드 8** (예상 ₩45,000): 저렴하면서 매일 착용 가능
-   → [쿠팡에서 보기](https://www.coupang.com/np/search?q=샤오미+미밴드8)
+{shop_example1}
+{shop_example2}
 
 추천 기준: 사용빈도가 높았던 카테고리의 업그레이드, 후회 구매를 대체할 대안, 충족되지 않은 니즈 해결
-링크 작성 규칙: 쿠팡 검색 URL은 https://www.coupang.com/np/search?q= 뒤에 브랜드+상품명 검색어를 붙이세요. 공백은 +로 대체하세요.
-중요: "고급 무선이어폰" 같은 일반적 표현 대신 "소니 WF-1000XM5" 처럼 실제 브랜드와 모델명을 사용하세요.
 
 ## 💡 절약 추천 TOP 5
 후회 점수가 높은 구매 패턴을 분석하여, 불필요한 지출을 줄일 수 있는 구체적인 절약 방법을 추천합니다.
 각 항목에 예상 월 절약 금액을 반드시 포함하세요.
 
 형식:
-1. **[절약 방법 제목]**: [구체적 실천 방안 1-2문장] → 예상 월 절약 ₩XX,XXX
+1. **[절약 방법 제목]**: [구체적 실천 방안 1-2문장] → 예상 월 절약 {sym}XX,XXX
 
 예시:
-1. **배달 앱 삭제 챌린지**: 주 3회 배달을 1회로 줄이고 간단한 자취 요리로 대체 → 예상 월 절약 ₩80,000
-2. **충동구매 24시간 룰**: 5만원 이상 구매 시 24시간 대기 후 결정 → 예상 월 절약 ₩50,000
+{save_example1}
+{save_example2}
 
 # 작성 가이드라인
 - 톤: 친근하고 유용한 정보 전달
 - 구체적 숫자와 근거 포함
 - ~해요, ~이에요 체 사용
-{("- 日本語で回答してください。~です、~ます体を使ってください。" + chr(10) + "- 쿠팡 링크 대신 Amazon.co.jp 검색 링크를 사용하세요: https://www.amazon.co.jp/s?k=검색어") if language == "ja" else "- 한국어로 작성"}"""
+{lang_guide}"""
 
         return prompt
 
